@@ -1,13 +1,15 @@
 name: bm-tf
 channels:
   - defaults
+  - nvidia
+  - conda-forge
   - https://repo.anaconda.com/pkgs/main
   - https://repo.anaconda.com/pkgs/r
 dependencies:
   - _libgcc_mutex=0.1
   - _openmp_mutex=5.1
   - ca-certificates=2024.12.31
-  - cudatoolkit=12.3
+  - cuda-toolkit=12.3.2
   - ld_impl_linux-64=2.40
   - libffi=3.4.4
   - libgcc-ng=11.2.0
@@ -15,6 +17,7 @@ dependencies:
   - libstdcxx-ng=11.2.0
   - ncurses=6.4
   - openssl=3.0.15
+  - pip=24.3.1
   - python=3.9.21
   - readline=8.2
   - setuptools=75.1.0
