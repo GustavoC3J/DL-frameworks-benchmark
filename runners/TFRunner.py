@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.layers import Input, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 
 import random
@@ -16,13 +16,15 @@ import time
 
 class TFRunner:
 
-    def __init__(self, model_type, model_complexity, seed = 42):
+    def __init__(self, model_type, model_complexity, epochs = 30, batch_size = 32, seed = 42):
         self.model_type = model_type
 
         if not(model_complexity == "simple" or model_complexity == "complex"):
             raise ValueError("Model complexity must be 'simple' or 'complex'")
         self.model_complexity = model_complexity
 
+        self.epochs = epochs
+        self.batch_size = batch_size
         
         # Fix seed
         self.seed = seed
@@ -86,50 +88,44 @@ class TFRunner:
 
 
     def _define_mlp(self):
+        activation = "relu"
+        dropout = 0.2
+        lr = 1e-3
+
+        self.model = Sequential()
+        self.model.add(Input(shape=(784,))) # Input layer
+
 
         if(self.model_complexity == "simple"):
-            activation = "relu"
-            dropout = 0.2
-            lr = 0.001
 
-            self.model = Sequential([
-                # Input + Hidden layer 1
-                Dense(256, activation=activation, input_shape=(784,)),
-                Dropout(dropout),
-                
-                # Hidden layer 2
-                Dense(128, activation=activation),
-                Dropout(dropout)
-            ])
+            # Input + Hidden layer 1
+            self.model.add(Dense(256, activation=activation, input_shape=(784,)))
+            self.model.add(Dropout(dropout))
+
+            # Hidden layer 2
+            self.model.add(Dense(128, activation=activation))
+            self.model.add(Dropout(dropout))
             
         else:
-            activation = "relu"
-            dropout = 0.2
-            lr = 0.001
-            
-            self.model = Sequential([
-                # Input + Hidden layer
-                Dense(512, activation=activation, input_shape=(784)),
-                Dropout(dropout),
-                
-                # Hidden layer
-                Dense(512, activation=activation),
-                Dropout(dropout),
-                
-                # Hidden layer
-                Dense(256, activation=activation),
-                Dropout(dropout),
-                
-                # Hidden layer
-                Dense(256, activation=activation),
-                Dropout(dropout),
-                
-                # Hidden layer
-                Dense(128, activation=activation),
-                Dropout(dropout)
-            ])
+            hidden_layers = 12
+            final_units = 128  # Last hidden layers will have 128 units
+            layers_per_group = 3
+
+            # Calculate initial units based on number of hidden layers
+            groups = (hidden_layers + layers_per_group - 1) // layers_per_group
+            units = final_units * (2 ** (groups - 1)) # Starting units
+
+            # Add the rest of the hidden layers
+            for i in range(1, hidden_layers + 1):
+                self.model.add(Dense(units, activation=activation))
+                self.model.add(Dropout(dropout))
+
+                # Halve the number of units for the next group
+                if i % layers_per_group == 0:
+                    units //= 2  
         
-        # Outut layer
+
+        # Output layer
         self.model.add(Dense(10, activation='softmax'))
             
         # Compile the model
@@ -153,10 +149,28 @@ class TFRunner:
         trainX, validX, trainY, validY = self.load_data("train")
 
         # Train the model
-        return self.model.fit(trainX, trainY, epochs = 30, validation_data = (validX, validY))
+        return self.model.fit(
+            trainX,
+            trainY,
+            epochs = self.epochs,
+            batch_size = self.batch_size,
+            validation_data = (validX, validY),
+            callbacks=[TimeEpochCallback()]
+        )
 
 
     def evaluate(self):
         testX, testY = self.load_data("test")
         self.model.evaluate(testX, testY)
 
+
+
+# Callback to save epoch time
+class TimeEpochCallback(tf.keras.callbacks.Callback):
+    
+    def on_epoch_begin(self, epoch, logs=None):
+        self.start_time = time.time()
+
+    def on_epoch_end(self, epoch, logs=None):
+        elapsed_time = time.time() - self.start_time
+        logs['epoch_time'] = elapsed_time  # Añadir tiempo al registro de logs
