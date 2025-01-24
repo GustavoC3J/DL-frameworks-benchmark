@@ -1,4 +1,4 @@
-name: bm-tf
+name: tf_env
 channels:
   - defaults
   - nvidia
@@ -85,7 +85,7 @@ dependencies:
       - six==1.17.0
       - tensorboard==2.18.0
       - tensorboard-data-server==0.7.2
-      - tensorflow==2.18.0
+      - tensorflow[and-cuda]==2.18.0
       - tensorflow-io-gcs-filesystem==0.37.1
       - termcolor==2.5.0
       - threadpoolctl==3.5.0

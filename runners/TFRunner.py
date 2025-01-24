@@ -99,7 +99,7 @@ class TFRunner:
         if(self.model_complexity == "simple"):
 
             # Input + Hidden layer 1
-            self.model.add(Dense(256, activation=activation, input_shape=(784,)))
+            self.model.add(Dense(256, activation=activation))
             self.model.add(Dropout(dropout))
 
             # Hidden layer 2
