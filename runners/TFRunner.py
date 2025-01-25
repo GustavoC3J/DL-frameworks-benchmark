@@ -1,4 +1,5 @@
 
+import GPUtil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,6 +13,8 @@ from tensorflow.keras.optimizers import Adam
 
 import random
 import time
+
+from callbacks.TFMetricsCallback import TFMetricsCallback
 
 
 class TFRunner:
@@ -107,7 +110,7 @@ class TFRunner:
             self.model.add(Dropout(dropout))
             
         else:
-            hidden_layers = 12
+            hidden_layers = 21
             final_units = 128  # Last hidden layers will have 128 units
             layers_per_group = 3
 
@@ -155,7 +158,7 @@ class TFRunner:
             epochs = self.epochs,
             batch_size = self.batch_size,
             validation_data = (validX, validY),
-            callbacks=[TimeEpochCallback()]
+            callbacks=[TFMetricsCallback()]
         )
 
 
@@ -165,12 +168,3 @@ class TFRunner:
 
 
 
-# Callback to save epoch time
-class TimeEpochCallback(tf.keras.callbacks.Callback):
-    
-    def on_epoch_begin(self, epoch, logs=None):
-        self.start_time = time.time()
-
-    def on_epoch_end(self, epoch, logs=None):
-        elapsed_time = time.time() - self.start_time
-        logs['epoch_time'] = elapsed_time  # Añadir tiempo al registro de logs
