@@ -7,9 +7,12 @@ from datetime import datetime
 from runners.TFRunner import TFRunner;
 
 # Parameters
-model_type = "mlp"
+model_type = "cnn"
 model_complexity = "complex"
 epochs = 3
+batch_size = 64
+
+n = 10
 
 
 # Create output directory
@@ -27,7 +30,7 @@ results_filepath = os.path.join(output_directory, results_filename)
 
 
 # Perform the experiment
-runner = TFRunner(model_type, model_complexity, epochs)
+runner = TFRunner(model_type, model_complexity, epochs, batch_size=batch_size, n=n)
 
 runner.define_model()
 history = runner.train()

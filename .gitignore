@@ -1,8 +1,8 @@
-# Excluse datasets but keep the directory
+# Exclude datasets but keep the directory
 datasets/*
 !datasets/.gitkeep
 
-# Excluse results but keep the directory
+# Exclude results but keep the directory
 results/*
 !results/.gitkeep
 

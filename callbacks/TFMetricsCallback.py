@@ -45,12 +45,13 @@ class TFMetricsCallback(Callback):
         # Number of batches after which a sample is obtained
         steps_per_sample = self.params['steps'] // self.samples_per_epoch
         
-        if (batch % steps_per_sample == 0):
+        if (batch != 0) and (batch % steps_per_sample == 0):
 
             # GPU metrics
             for i, gpu in enumerate(GPUtil.getGPUs()):
                 self.gpu_batch_metrics[i]['load'][self.sample_index] = gpu.load
                 self.gpu_batch_metrics[i]['memory_used'][self.sample_index] = gpu.memoryUsed
+
             self.sample_index += 1
         
 
