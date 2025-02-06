@@ -15,7 +15,7 @@ from tensorflow.keras.optimizers import Adam
 import random
 import time
 
-from callbacks.TFMetricsCallback import TFMetricsCallback
+from utils.TFMetricsCallback import TFMetricsCallback
 
 
 class TFRunner:
@@ -281,10 +281,8 @@ class TFRunner:
         pass
 
 
-    def train(self):
-        # Load data
-        trainX, validX, trainY, validY = self.load_data("train")
-
+    def train(self, trainX, validX, trainY, validY):
+        
         # Train the model
         return self.model.fit(
             trainX,
