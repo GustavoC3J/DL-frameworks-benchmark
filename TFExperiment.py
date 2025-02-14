@@ -6,17 +6,19 @@ from datetime import datetime
 
 import pandas as pd
 
-from runners.TFRunner import TFRunner
-from utils.GPUMetrics import get_gpu_memory_total
+from datasets.dataloader import load_data
+from runners.tf_runner import TFRunner
+from utils.gpu_metrics import get_gpu_memory_total
 
 # Parameters
 model_type = "cnn"
 model_complexity = "simple"
 epochs = 3
 batch_size = 64
-gpus = "0,1,2"
-
+seed = 42
 n = 10
+
+gpus = "0,1,2"
 
 # Select which GPUs to use
 os.environ["CUDA_VISIBLE_DEVICES"] = gpus
@@ -38,7 +40,14 @@ results_filepath = os.path.join(output_directory, results_filename)
 
 
 # Perform the experiment
-runner = TFRunner(model_type, model_complexity, epochs, batch_size=batch_size, n=n)
+runner = TFRunner(
+    model_type = model_type,
+    model_complexity = model_complexity,
+    epochs = epochs,
+    batch_size=batch_size,
+    seed = seed,
+    n=n
+)
 
 # Define and build the model
 start = time.time()
@@ -46,7 +55,7 @@ runner.define_model()
 definition_time = time.time() - start
 
 # Load formatted datasets used in training
-formatted_data = runner.load_data("train")
+formatted_data = load_data(model_type, "train")
 
 # Start training
 start = time.time()
@@ -54,8 +63,6 @@ history = runner.train(*formatted_data)
 training_time = time.time() - start
 
 # Get memory of all GPUs
-#gpu_metrics = {f'gpu_{i}_memory_total': gpu.memoryTotal for i, gpu in enumerate(GPUtil.getGPUs())}
-
 gpu_indices = [int(gpu) for gpu in gpus.split(",") if gpu.isdigit()]
 gpu_memory_total = {
     f"gpu_{gpu['index']}_memory_total": gpu['memory_total'] for gpu in get_gpu_memory_total(gpu_indices)

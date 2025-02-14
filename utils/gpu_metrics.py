@@ -45,5 +45,5 @@ def get_gpu_memory_total(gpu_indices=None):
     return gpus
 
 if __name__ == "__main__":
-    print("Métricas de GPU:", get_gpu_metrics())
-    print("Memoria total de GPU:", get_gpu_memory_total())
+    print("GPU metrics:", get_gpu_metrics())
+    print("GPU memory total:", get_gpu_memory_total())

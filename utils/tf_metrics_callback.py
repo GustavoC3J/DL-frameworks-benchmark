@@ -2,7 +2,7 @@ import os
 import time
 
 import numpy as np
-from utils.GPUMetrics import get_gpu_metrics
+from utils.gpu_metrics import get_gpu_metrics
 from tensorflow.keras.callbacks import Callback
 
 

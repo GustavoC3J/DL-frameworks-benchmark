@@ -1,10 +1,11 @@
 # Exclude datasets but keep the directory
 datasets/*
-!datasets/.gitkeep
+!datasets/dataloader.py
 
 # Exclude results but keep the directory
 results/*
 !results/.gitkeep
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
