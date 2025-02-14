@@ -6,12 +6,12 @@ from datetime import datetime
 
 import pandas as pd
 
-from datasets.dataloader import load_data
+from datasets.data_loader import DataLoader
 from runners.tf_runner import TFRunner
 from utils.gpu_metrics import get_gpu_memory_total
 
 # Parameters
-model_type = "cnn"
+model_type = "rnn"
 model_complexity = "simple"
 epochs = 3
 batch_size = 64
@@ -55,7 +55,8 @@ runner.define_model()
 definition_time = time.time() - start
 
 # Load formatted datasets used in training
-formatted_data = load_data(model_type, "train")
+data_loader = DataLoader(model_type, seed)
+formatted_data = data_loader.load_data("train")
 
 # Start training
 start = time.time()

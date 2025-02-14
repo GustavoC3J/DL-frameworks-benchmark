@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
-from utils.TFMetricsCallback import TFMetricsCallback
+from utils.tf_metrics_callback import TFMetricsCallback
 
 
 class TFRunner(Runner):
