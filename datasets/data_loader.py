@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 
 
 class DataLoader():
@@ -19,7 +19,7 @@ class DataLoader():
         elif (self.model_type == "cnn"):
             return self.__load_cifar_100(dataset_type)
         
-        elif (self.model_type == "rnn"):
+        elif (self.model_type == "lstm"):
             return self.__load_yellow_taxi(dataset_type)
 
 
@@ -50,6 +50,7 @@ class DataLoader():
 
             return (testX, testY)
         
+
     def __load_cifar_100(self, dataset_type):
         path = f"datasets/cifar-100/{dataset_type}"
 
@@ -91,6 +92,9 @@ class DataLoader():
 
     def __load_yellow_taxi(self, dataset_type):
 
+        interval = 10 # Minutes
+        window = 48 * 60 // interval # Number of timesteps
+
         # Load data
         path = "datasets/yellow-taxi"
 
@@ -103,11 +107,11 @@ class DataLoader():
         
         # Prepare data
         df = self.__clean(df)
-        df = self.__transform(df)
+        df = self.__transform(df, interval)
 
         if (dataset_type == "train"):
             # Scale attributes between 0 and 1
-            self.scaler = MinMaxScaler()
+            self.scaler = StandardScaler()
             df = pd.DataFrame(self.scaler.fit_transform(df), columns=df.columns)
 
             # Split into training and validation sets (80%-20%)
@@ -115,23 +119,16 @@ class DataLoader():
             train, val = df[:train_size], df[train_size:]
 
             # Shape sets into windows
-            trainX, trainY = self.__windows(np.array(train))
-            valX, valY = self.__windows(np.array(val))
+            trainX, trainY = self.__windows(np.array(train), window)
+            valX, valY = self.__windows(np.array(val), window)
 
             return trainX, valX, trainY, valY
         
         else:
-            df = pd.DataFrame(self.scaler.fit_transform(df), columns=df.columns)
+            df = pd.DataFrame(self.scaler.transform(df), columns=df.columns)
 
-            return self.__windows(np.array(df)) # testX, testY
+            return self.__windows(np.array(df), window) # testX, testY
 
-
-    def __windows(self, data, timesteps=24):
-        x, y = [], []
-        for i in range(len(data) - timesteps):
-            x.append(data[i:i+timesteps])  # Input window
-            y.append(data[i+timesteps, -1])  # Next trip count
-        return np.array(x), np.array(y)
 
     def __clean(self, df):
         # Keep only relevant atributes
@@ -181,12 +178,12 @@ class DataLoader():
         return df
 
 
-    def __transform(self, df):
+    def __transform(self, df, interval):
         # Set pickup timestamp as index
         df.set_index("tpep_pickup_datetime", inplace=True)
 
-        # Compute hourly aggregations
-        df = df.resample("h").agg({
+        # Compute interval aggregations
+        df = df.resample(f"{interval}min").agg({
             "passenger_count": "sum",
             "trip_distance": ["sum", "mean"],
             "trip_duration": ["sum", "mean"],
@@ -196,6 +193,9 @@ class DataLoader():
 
         df.columns = ["passenger_sum", "distance_sum", "distance_mean", "duration_sum",
                     "duration_mean", "total_sum", "speed_mean", "trip_count"]
+        
+        # In intervals with no trips, the means are Nan (0/0), so they are filled with zeros
+        df.fillna(0, inplace=True)
 
         # Add time info
         df["day_of_year"] = df.index.dayofyear
@@ -206,4 +206,12 @@ class DataLoader():
         df["trip_count"] = df.pop("trip_count")
 
         return df
+
+
+    def __windows(self, data, timesteps):
+        x, y = [], []
+        for i in range(len(data) - timesteps):
+            x.append(data[i:i+timesteps])  # Input window
+            y.append(data[i+timesteps, -1])  # Next trip count
+        return np.array(x), np.array(y)
 

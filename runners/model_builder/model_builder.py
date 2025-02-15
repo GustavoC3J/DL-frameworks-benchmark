@@ -19,7 +19,7 @@ class ModelBuilder(ABC):
             return self._cnn_simple() if self.model_complexity == "simple" else self._cnn_complex()
 
         elif self.model_type == "lstm":
-            return self._rnn_simple() if self.model_complexity == "simple" else self._rnn_complex()
+            return self._lstm_simple() if self.model_complexity == "simple" else self._lstm_complex()
 
 
     @abstractmethod
@@ -39,9 +39,9 @@ class ModelBuilder(ABC):
         pass
 
     @abstractmethod
-    def _rnn_simple(self):
+    def _lstm_simple(self):
         pass
 
     @abstractmethod
-    def _rnn_complex(self):
+    def _lstm_complex(self):
         pass

@@ -11,12 +11,11 @@ from runners.tf_runner import TFRunner
 from utils.gpu_metrics import get_gpu_memory_total
 
 # Parameters
-model_type = "rnn"
-model_complexity = "simple"
+model_type = "lstm"
+model_complexity = "complex"
 epochs = 3
 batch_size = 64
 seed = 42
-n = 10
 
 gpus = "0,1,2"
 
@@ -45,8 +44,7 @@ runner = TFRunner(
     model_complexity = model_complexity,
     epochs = epochs,
     batch_size=batch_size,
-    seed = seed,
-    n=n
+    seed = seed
 )
 
 # Define and build the model

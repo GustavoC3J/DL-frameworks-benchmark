@@ -9,13 +9,12 @@ import numpy as np
 
 class Runner(ABC):
 
-    def __init__(self, model_type, model_complexity, epochs, batch_size, seed, n):
+    def __init__(self, model_type, model_complexity, epochs, batch_size, seed):
 
         self.model_type = model_type
         self.model_complexity = model_complexity
         self.epochs = epochs
         self.batch_size = batch_size
-        self.n = n # CNN
         
         # Fix seed
         self.seed = seed

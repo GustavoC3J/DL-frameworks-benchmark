@@ -2,7 +2,7 @@
 
 from tensorflow.keras.layers import (BatchNormalization, Conv2D, Dense,
                                      Dropout, Flatten, GlobalAveragePooling2D,
-                                     Input, MaxPooling2D, ReLU, add)
+                                     Input, MaxPooling2D, ReLU, add, LSTM, Bidirectional)
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.optimizers import Adam
 
@@ -59,7 +59,7 @@ class KerasModelBuilder(ModelBuilder):
         model = Sequential()
         model.add(Input(shape=(784,))) # Input layer
 
-        # Add the rest of the hidden layers
+        # Add the hidden layers
         for i in range(1, hidden_layers + 1):
             model.add(Dense(units, activation=activation))
             model.add(Dropout(dropout))
@@ -87,7 +87,8 @@ class KerasModelBuilder(ModelBuilder):
         lr = 1e-3
         
         model = Sequential([
-            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same', input_shape=(32, 32, 3)),
+            Input(shape=(32, 32, 3)),
+            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same'),
             MaxPooling2D(pool_size=(2, 2)),
             Dropout(dropout),
             
@@ -117,7 +118,8 @@ class KerasModelBuilder(ModelBuilder):
         return model
     
 
-    def _cnn_complex(self, n):
+    def _cnn_complex(self):
+        n = 10
         lr = 1e-3
 
         # Build a Resnet block
@@ -171,10 +173,90 @@ class KerasModelBuilder(ModelBuilder):
         return model
     
 
-    def _rnn_simple(self):
-        raise NotImplementedError
+    def _lstm_simple(self):
+        interval = 10
+        window = 48 * 60 // interval
+        
+        cells = 32
+        activation = "tanh"
+        dropout = 0.1
+        lr = 1e-4
+        
+        # Build the model
+        model = Sequential([
+            Input(shape=(window, 11)),
 
-    def _rnn_complex(self):
-        raise NotImplementedError
+            LSTM(cells, activation=activation, return_sequences=True),
+            BatchNormalization(),
+            Dropout(dropout),
+
+            LSTM(cells, activation=activation),
+            BatchNormalization(),
+            Dropout(dropout),
+
+            Dense(16, activation = activation),
+            Dropout(dropout),
+
+            Dense(1) # Output (trip count)
+        ])
+
+        # Compile the model
+        model.compile(
+            optimizer = Adam(learning_rate = lr),             
+            loss = 'mse',
+            metrics = ['mae']
+        )
+        
+        return model
+
+    def _lstm_complex(self):
+        interval = 10
+        window = 48 * 60 // interval
+
+        lstm_layers = 8
+        cells = 512
+        activation = "tanh"
+        dropout = 0.4
+        lr = 1e-5
+        
+        # Build the model
+        model = Sequential()
+        model.add(Input(shape=(window, 11))) # Input layer
+
+        # Add the hidden LSTM layers
+        for i in range(1, lstm_layers + 1):
+
+            # From the middle, the cells are halved
+            if (i > (lstm_layers // 2)):
+                cells = cells // 2
+
+            model.add(Bidirectional(LSTM(cells, activation = activation, return_sequences = (i < lstm_layers)))) # Last LSTM layer doesn't return sequences
+            model.add(BatchNormalization())
+            model.add(Dropout(dropout))
+
+            
+        # Output layer
+        model.add(Dense(256, activation = activation))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.2))
+
+        model.add(Dense(128, activation = activation))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.2))
+
+        model.add(Dense(64, activation = activation))
+        model.add(BatchNormalization())
+        model.add(Dropout(0.1))
+        
+        model.add(Dense(1))
+
+        # Compile the model
+        model.compile(
+            optimizer = Adam(learning_rate = lr),             
+            loss = 'mse',
+            metrics = ['mae']
+        )
+        
+        return model
 
 
