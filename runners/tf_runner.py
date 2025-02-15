@@ -40,7 +40,11 @@ class TFRunner(Runner):
 
 
     def evaluate(self, testX, testY):
-        self.model.evaluate(testX, testY)
+        callback = TFMetricsCallback()
+
+        self.model.evaluate(testX, testY, callbacks=[callback])
+
+        return callback.test_logs
 
 
 

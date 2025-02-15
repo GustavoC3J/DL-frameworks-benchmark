@@ -11,8 +11,8 @@ from runners.tf_runner import TFRunner
 from utils.gpu_metrics import get_gpu_memory_total
 
 # Parameters
-model_type = "lstm"
-model_complexity = "complex"
+model_type = "cnn"
+model_complexity = "simple"
 epochs = 3
 batch_size = 64
 seed = 42
@@ -28,13 +28,12 @@ timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 output_directory = f"results/{timestamp}-{model_type}-{model_complexity}"
 os.makedirs(output_directory, exist_ok=True)
 
-global_metrics_filename = "global_metrics.csv"
-results_filename = "results.csv"
 
 
 # Path to the results files
-global_metrics_filepath = os.path.join(output_directory, global_metrics_filename)
-results_filepath = os.path.join(output_directory, results_filename)
+global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
+train_results_filepath = os.path.join(output_directory, "train.csv")
+test_results_filepath = os.path.join(output_directory, "test.csv")
 
 
 
@@ -58,8 +57,14 @@ formatted_data = data_loader.load_data("train")
 
 # Start training
 start = time.time()
-history = runner.train(*formatted_data)
+train_results = runner.train(*formatted_data)
 training_time = time.time() - start
+
+# Start testing
+formatted_data = data_loader.load_data("test")
+start = time.time()
+test_results = runner.evaluate(*formatted_data)
+testing_time = time.time() - start
 
 # Get memory of all GPUs
 gpu_indices = [int(gpu) for gpu in gpus.split(",") if gpu.isdigit()]
@@ -69,11 +74,13 @@ gpu_memory_total = {
 
 global_metrics = pd.DataFrame([{  
     'definition_time': definition_time,  
-    'training_time': training_time,  
+    'training_time': training_time,
+    'testing_time': testing_time,  
     **gpu_memory_total  
 }])
 
 # Save results to csv
 global_metrics.to_csv(global_metrics_filepath, index=False)
-pd.DataFrame(history.history).to_csv(results_filepath, index_label="epoch")
+pd.DataFrame(train_results.history).to_csv(train_results_filepath, index_label="epoch")
+pd.DataFrame([test_results]).to_csv(test_results_filepath, index_label="epoch")
 
