@@ -8,11 +8,11 @@ from tensorflow.keras.callbacks import Callback
 
 class TFMetricsCallback(Callback):
 
-    def __init__(self, visible_gpus, samples_per_epoch=4):
+    def __init__(self, gpu_indices, samples_per_epoch=4):
         super().__init__()
         
         # Get visible GPUs
-        self.gpu_indices = [int(gpu) for gpu in visible_gpus.split(",") if gpu.isdigit()]
+        self.gpu_indices = gpu_indices
         
         self.samples_per_epoch = samples_per_epoch
         self.in_training = False # Used to avoid calling test methods during validation

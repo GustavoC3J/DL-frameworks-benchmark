@@ -15,7 +15,7 @@ class Runner(ABC):
         self.model_complexity = model_complexity
         self.epochs = epochs
         self.batch_size = batch_size
-        self.gpus = gpus
+        self.gpus = [int(gpu) for gpu in gpus.split(",") if gpu.isdigit()]
         
         # Fix seed
         self.seed = seed
