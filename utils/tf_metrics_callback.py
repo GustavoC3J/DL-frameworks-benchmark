@@ -8,11 +8,10 @@ from tensorflow.keras.callbacks import Callback
 
 class TFMetricsCallback(Callback):
 
-    def __init__(self, samples_per_epoch=4):
+    def __init__(self, visible_gpus, samples_per_epoch=4):
         super().__init__()
         
         # Get visible GPUs
-        visible_gpus = os.environ.get("CUDA_VISIBLE_DEVICES", "")
         self.gpu_indices = [int(gpu) for gpu in visible_gpus.split(",") if gpu.isdigit()]
         
         self.samples_per_epoch = samples_per_epoch

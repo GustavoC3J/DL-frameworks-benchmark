@@ -29,10 +29,6 @@ def parse_params():
 
 def run_experiment(params):
 
-    # Select which GPUs to use
-    os.environ["CUDA_VISIBLE_DEVICES"] = params.gpus
-
-
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     output_directory = f"results/{timestamp}-{params.model_type}-{params.model_complexity}"
@@ -53,7 +49,8 @@ def run_experiment(params):
         model_complexity = params.model_complexity,
         epochs = params.epochs,
         batch_size=params.batch_size,
-        seed = params.seed
+        seed = params.seed,
+        gpus = params.gpus
     )
 
     # Define and build the model

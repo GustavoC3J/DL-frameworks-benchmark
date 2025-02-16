@@ -35,12 +35,12 @@ class TFRunner(Runner):
             epochs = self.epochs,
             batch_size = self.batch_size,
             validation_data = (validX, validY),
-            callbacks=[TFMetricsCallback()]
+            callbacks=[TFMetricsCallback(self.gpus)]
         )
 
 
     def evaluate(self, testX, testY):
-        callback = TFMetricsCallback()
+        callback = TFMetricsCallback(self.gpus)
 
         self.model.evaluate(testX, testY, callbacks=[callback])
 
