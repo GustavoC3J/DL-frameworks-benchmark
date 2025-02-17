@@ -52,7 +52,7 @@ class DataLoader():
         
 
     def __load_cifar_100(self, dataset_type):
-        path = f"datasets/cifar-100/{dataset_type}"
+        path = f"datasets/cifar100/{dataset_type}"
 
         def unpickle(file):
             with open(file, 'rb') as fo:

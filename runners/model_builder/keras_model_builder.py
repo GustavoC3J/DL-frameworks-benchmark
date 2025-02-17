@@ -1,10 +1,10 @@
 
 
-from tensorflow.keras.layers import (BatchNormalization, Conv2D, Dense,
+from keras.layers import (BatchNormalization, Conv2D, Dense,
                                      Dropout, Flatten, GlobalAveragePooling2D,
                                      Input, MaxPooling2D, ReLU, add, LSTM, Bidirectional)
-from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras.optimizers import Adam
+from keras.models import Model, Sequential
+from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
 

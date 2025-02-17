@@ -17,9 +17,13 @@ class TFRunner(Runner):
 
     
     def define_model(self):
+    
         # Define the strategy to follow in order to balance the workload between GPUs
-        strategy = tf.distribute.MirroredStrategy() if len(self.gpus) > 1 else tf.distribute.get_strategy()
-
+        if len(self.gpus) > 1:
+            strategy = tf.distribute.MirroredStrategy( [f"GPU:{gpu}" for gpu in self.gpus] )
+        else:
+            strategy = tf.distribute.get_strategy()
+        
         with strategy.scope():
             self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
 
@@ -32,7 +36,7 @@ class TFRunner(Runner):
             trainX,
             trainY,
             epochs = self.epochs,
-            batch_size = self.batch_size,
+            batch_size = len(self.gpus) * self.batch_size,
             validation_data = (validX, validY),
             callbacks=[TFMetricsCallback(self.gpus)]
         )
