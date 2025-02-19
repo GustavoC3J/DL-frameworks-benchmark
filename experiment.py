@@ -8,7 +8,6 @@ from datetime import datetime
 import pandas as pd
 
 from datasets.data_loader import DataLoader
-from runners.tf_runner import TFRunner
 from utils.gpu_metrics import get_gpu_memory_total
 
 
@@ -16,6 +15,7 @@ def parse_params():
     parser = argparse.ArgumentParser()
     
     # Required params
+    parser.add_argument("backend", type=str)
     parser.add_argument("model_type", type=str)
     parser.add_argument("model_complexity", type=str)
     
@@ -27,11 +27,11 @@ def parse_params():
 
     return parser.parse_args()
 
-def run_experiment(params):
+def run_experiment(runner, params):
 
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_directory = f"results/{timestamp}-{params.model_type}-{params.model_complexity}"
+    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}"
     os.makedirs(output_directory, exist_ok=True)
 
 
@@ -44,15 +44,7 @@ def run_experiment(params):
 
 
     # Perform the experiment
-    runner = TFRunner(
-        model_type = params.model_type,
-        model_complexity = params.model_complexity,
-        epochs = params.epochs,
-        batch_size=params.batch_size,
-        seed = params.seed,
-        gpus = params.gpus
-    )
-
+    
     # Define and build the model
     start = time.time()
     runner.define_model()
@@ -80,6 +72,13 @@ def run_experiment(params):
     }
 
     global_metrics = pd.DataFrame([{  
+        'backend': params.backend,
+        'model_type': params.model_type,
+        'model_complexity': params.model_complexity,
+        'epochs': params.epochs,
+        'batch_size': params.batch_size,
+        'seed': params.seed,
+        'gpus': params.gpus,
         'definition_time': definition_time,  
         'training_time': training_time,
         'testing_time': testing_time,  
@@ -96,4 +95,31 @@ def run_experiment(params):
 
 if __name__ == "__main__":
     params = parse_params()
-    run_experiment(params)
+
+    # backend is the library used follow by "-keras" if Keras is used
+    segments = params.backend.split("-", 1)
+
+    library = segments[0]
+    use_keras = len(segments) > 1 and segments[1] == "keras"
+
+    # Load the corresponding runner
+    if library == "tf":
+        from runners.tf_runner import TFRunner
+
+        runner = TFRunner(
+            model_type = params.model_type,
+            model_complexity = params.model_complexity,
+            epochs = params.epochs,
+            batch_size=params.batch_size,
+            seed = params.seed,
+            gpus = params.gpus
+        )
+
+    elif library == "pytorch":
+        pass
+    elif library == "jax":
+        pass
+    else:
+        exit(1)
+
+    run_experiment(runner, params)
