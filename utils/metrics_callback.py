@@ -3,10 +3,10 @@ import time
 
 import numpy as np
 from utils.gpu_metrics import get_gpu_metrics
-from tensorflow.keras.callbacks import Callback
+from keras.callbacks import Callback
 
 
-class TFMetricsCallback(Callback):
+class MetricsCallback(Callback):
 
     def __init__(self, gpu_indices, samples_per_epoch=4):
         super().__init__()

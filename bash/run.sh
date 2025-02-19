@@ -33,7 +33,8 @@ if [[ "$LIBRARY" != "tf" ]] && [[ "$BACKEND" == *"-keras" ]]; then
 fi
 
 # Load conda and environment
-if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
+#if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
+if source "/frontend/gustcort/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
     echo "Environment: $CONDA_ENV"
 
     # Run experiment

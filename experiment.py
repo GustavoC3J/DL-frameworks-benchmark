@@ -95,7 +95,7 @@ def run_experiment(runner, params):
 
 if __name__ == "__main__":
     params = parse_params()
-
+    
     # backend is the library used follow by "-keras" if Keras is used
     segments = params.backend.split("-", 1)
 
@@ -115,11 +115,22 @@ if __name__ == "__main__":
             gpus = params.gpus
         )
 
-    elif library == "pytorch":
-        pass
+    elif library == "torch":
+        from runners.torch_runner import TorchRunner
+
+        runner = TorchRunner(
+            model_type = params.model_type,
+            model_complexity = params.model_complexity,
+            epochs = params.epochs,
+            batch_size=params.batch_size,
+            seed = params.seed,
+            gpus = params.gpus
+        )
+        
     elif library == "jax":
         pass
     else:
-        exit(1)
+        print("Error: Unknown library")
 
-    run_experiment(runner, params)
+    if runner:
+        run_experiment(runner, params)

@@ -1,31 +1,34 @@
 
-import tensorflow as tf
+import torch
+import keras
 
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.metrics_callback import MetricsCallback
 
 
-class TFRunner(Runner):
+class TorchRunner(Runner):
 
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
         
         # Fix the seed
-        tf.random.set_seed(self.seed)
+        torch.manual_seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(self.seed)
 
     
     def define_model(self):
-    
-        # Define the strategy to follow in order to balance the workload between GPUs
+
+        self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
+
+        # Move the model to the first GPU
+        self.model.to(f"cuda:{self.gpus[0]}")
+
+        # If there are multiple GPUs, 
         if len(self.gpus) > 1:
-            strategy = tf.distribute.MirroredStrategy( [f"GPU:{gpu}" for gpu in self.gpus] )
-        else:
-            strategy = tf.distribute.get_strategy()
-        
-        with strategy.scope():
-            self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
+            self.model = torch.nn.DistributedDataParallel(self.model, device_ids=self.gpus)
 
 
 
