@@ -1,9 +1,10 @@
+import tarfile
 import requests
 import zipfile
 import os
 
 def download_and_extract(dataset_name, url):
-    file_name = f"{dataset_name}.zip"
+    file_name = f"{dataset_name}.zip" if dataset_name != "cifar10" else f"{dataset_name}.tar.gz"
     
     # Download the file
     response = requests.get(url, stream=True)
@@ -16,14 +17,22 @@ def download_and_extract(dataset_name, url):
         return
     
     # Extract the file
+    extract_path = f"datasets/{dataset_name}"
+    os.makedirs(extract_path, exist_ok=True)
+
     try:
-        with zipfile.ZipFile(file_name, 'r') as zip_ref:
-            zip_ref.extractall(f"datasets/{dataset_name}")
-    except zipfile.BadZipFile:
-        print(f"The downloaded file for {dataset_name} is not a valid ZIP file.")
+        if dataset_name == "cifar10":
+            with tarfile.open(file_name, 'r:gz') as tar_ref:
+                tar_ref.extractall(extract_path)
+        else:
+            with zipfile.ZipFile(file_name, 'r') as zip_ref:
+                zip_ref.extractall(extract_path)
+                
+    except Exception as e:
+        print(f"Error extracting {dataset_name}: {e}")
         return
     
-    # Remove the zip file
+    # Remove the file
     os.remove(file_name)
     
     # Completion message
@@ -32,7 +41,7 @@ def download_and_extract(dataset_name, url):
 # Dataset URLs
 datasets = {
     "fashion-mnist": "https://www.kaggle.com/api/v1/datasets/download/zalando-research/fashionmnist",
-    "cifar100": "https://www.kaggle.com/api/v1/datasets/download/fedesoriano/cifar100",
+    "cifar10": "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz",
     "yellow-taxi": "https://www.kaggle.com/api/v1/datasets/download/elemento/nyc-yellow-taxi-trip-data"
 }
 
