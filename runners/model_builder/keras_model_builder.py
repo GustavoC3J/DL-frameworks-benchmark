@@ -14,7 +14,7 @@ class KerasModelBuilder(ModelBuilder):
     def _mlp_simple(self):
         activation = "relu"
         dropout = 0.2
-        lr = 1e-3
+        lr = 1e-4
         
         model = Sequential()
         
@@ -45,7 +45,7 @@ class KerasModelBuilder(ModelBuilder):
     def _mlp_complex(self):
         activation = "relu"
         dropout = 0.2
-        lr = 1e-3
+        lr = 1e-4
 
         hidden_layers = 21
         final_units = 128  # Last hidden layers will have 128 units
@@ -84,7 +84,7 @@ class KerasModelBuilder(ModelBuilder):
     def _cnn_simple(self):
         activation = "relu"
         dropout = 0.2
-        lr = 1e-3
+        lr = 1e-4
         
         model = Sequential([
             Input(shape=(32, 32, 3)),
@@ -119,8 +119,8 @@ class KerasModelBuilder(ModelBuilder):
     
 
     def _cnn_complex(self):
-        n = 10
-        lr = 1e-3
+        n = 10 # number of blocks, 6n + 1 layers
+        lr = 1e-4
 
         # Build a Resnet block
         def block(x, filtros, kernel_size = 3, stride = 1):
@@ -217,7 +217,7 @@ class KerasModelBuilder(ModelBuilder):
         cells = 512
         activation = "tanh"
         dropout = 0.4
-        lr = 1e-5
+        lr = 1e-4
         
         # Build the model
         model = Sequential()

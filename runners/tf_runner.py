@@ -30,16 +30,19 @@ class TFRunner(Runner):
 
 
     def train(self, trainX, validX, trainY, validY):
+        callback = MetricsCallback(self.gpus)
         
         # Train the model
-        return self.model.fit(
+        history = self.model.fit(
             trainX,
             trainY,
             epochs = self.epochs,
             batch_size = len(self.gpus) * self.batch_size,
             validation_data = (validX, validY),
-            callbacks=[MetricsCallback(self.gpus)]
+            callbacks=[callback]
         )
+    
+        return history.history, callback.samples_logs
 
 
     def evaluate(self, testX, testY):
@@ -47,7 +50,7 @@ class TFRunner(Runner):
 
         self.model.evaluate(testX, testY, callbacks=[callback])
 
-        return callback.test_logs
+        return callback.test_logs, callback.samples_logs
 
 
 

@@ -39,7 +39,9 @@ def run_experiment(runner, params):
     # Path to the results files
     global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
     train_results_filepath = os.path.join(output_directory, "train.csv")
+    train_samples_filepath = os.path.join(output_directory, "train_samples.csv")
     test_results_filepath = os.path.join(output_directory, "test.csv")
+    test_samples_filepath = os.path.join(output_directory, "test_samples.csv")
 
 
 
@@ -56,13 +58,13 @@ def run_experiment(runner, params):
 
     # Start training
     start = time.time()
-    train_results = runner.train(*formatted_data)
+    train_results, train_samples = runner.train(*formatted_data)
     training_time = time.time() - start
 
     # Start testing
     formatted_data = data_loader.load_data("test")
     start = time.time()
-    test_results = runner.evaluate(*formatted_data)
+    test_results, test_samples = runner.evaluate(*formatted_data)
     testing_time = time.time() - start
 
     # Get memory of all GPUs
@@ -87,8 +89,12 @@ def run_experiment(runner, params):
 
     # Save results to csv
     global_metrics.to_csv(global_metrics_filepath, index=False)
-    pd.DataFrame(train_results.history).to_csv(train_results_filepath, index_label="epoch")
-    pd.DataFrame([test_results]).to_csv(test_results_filepath, index_label="epoch")
+
+    pd.DataFrame(train_results).to_csv(train_results_filepath, index_label="epoch")
+    pd.DataFrame(train_samples).to_csv(train_samples_filepath, index=False)
+
+    pd.DataFrame([test_results]).to_csv(test_results_filepath, index=False)
+    pd.DataFrame(test_samples).to_csv(test_samples_filepath, index=False)
 
 
 
