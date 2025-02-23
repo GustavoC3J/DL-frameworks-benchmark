@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import keras
 import time
 from datetime import datetime
 
@@ -108,6 +109,9 @@ if __name__ == "__main__":
     library = segments[0]
     use_keras = len(segments) > 1 and segments[1] == "keras"
 
+    if (use_keras):
+        keras.utils.set_random_seed(params.seed)
+
     # Load the corresponding runner
     if library == "tf":
         from runners.tf_runner import TFRunner
@@ -134,7 +138,16 @@ if __name__ == "__main__":
         )
         
     elif library == "jax":
-        pass
+        from runners.jax_runner import JaxRunner
+
+        runner = JaxRunner(
+            model_type = params.model_type,
+            model_complexity = params.model_complexity,
+            epochs = params.epochs,
+            batch_size=params.batch_size,
+            seed = params.seed,
+            gpus = params.gpus
+        )
     else:
         print("Error: Unknown library")
 

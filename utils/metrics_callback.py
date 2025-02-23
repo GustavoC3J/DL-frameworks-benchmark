@@ -90,7 +90,7 @@ class MetricsCallback(Callback):
         # Number of batches after which a sample is obtained
         steps_per_sample = self.params['steps'] // self.samples_per_epoch
         
-        if (batch != 0) and (batch % steps_per_sample == 0):
+        if (batch != 0) and (steps_per_sample != 0) and (batch % steps_per_sample == 0):
 
             sample = {
                 "timestamp": time.time() - self.start_time # Add current sample timestamp
