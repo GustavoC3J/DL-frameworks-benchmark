@@ -143,6 +143,7 @@ if __name__ == "__main__":
         runner = JaxRunner(
             model_type = params.model_type,
             model_complexity = params.model_complexity,
+            keras = use_keras,
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
