@@ -15,7 +15,8 @@ def accuracy(logits, y):
 
 
 @jax.jit
-def mlp_train_step(state, batch, key):
+def classif_train_step(state, batch, key):
+    # Train step used in MLP and CNN models
     x, y = batch
 
     def loss_fn(params):
@@ -31,7 +32,8 @@ def mlp_train_step(state, batch, key):
 
 
 @jax.jit
-def mlp_eval_step(state, batch):
+def classif_eval_step(state, batch):
+    # Test step used in MLP and CNN models
     x, y = batch
 
     logits = state.apply_fn({'params': state.params}, x, deterministic=True)

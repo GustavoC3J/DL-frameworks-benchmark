@@ -52,8 +52,6 @@ class FlaxModelBuilder(ModelBuilder):
             "params": params,
             "optimizer": optimizer,
             "opt_state": opt_state,
-            "loss_fn": softmax_cross_entropy,
-            "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
 

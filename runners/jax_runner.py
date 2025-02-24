@@ -10,8 +10,9 @@ import numpy as np
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.runner import Runner
+from utils.gpu_metrics import get_gpu_metrics
 from utils.metrics_callback import MetricsCallback
-from utils.jax_utils import mlp_train_step, mlp_eval_step
+from utils.jax_utils import classif_train_step, classif_eval_step
 
 
 class JaxRunner(Runner):
@@ -66,6 +67,29 @@ class JaxRunner(Runner):
         return history.history, callback.samples_logs
 
 
+    def __record_sample(self):
+
+        sample = {
+            "timestamp": time.time() - self.start_time # Add current sample timestamp
+        }
+
+        # GPU metrics
+        gpu_metrics = get_gpu_metrics(self.gpus)
+        
+        for gpu in gpu_metrics:
+            gpu_id = gpu['index']
+            prefix = f'gpu_{gpu_id}_'
+
+            sample[prefix + 'utilization'] = gpu['utilization']
+            sample[prefix + 'memory_used'] = gpu['memory_used']
+            sample[prefix + 'power'] = gpu['power']
+
+        return sample
+    
+
+
+
+
     def __jax_train(self, trainX, validX, trainY, validY):
         # Training loop using JAX
 
@@ -82,11 +106,16 @@ class JaxRunner(Runner):
             "epoch_time": []
         }
 
+        samples_logs = []
+
         num_batches = len(trainX) // self.batch_size
+
+        # Training start time
+        self.start_time = time.time()
 
         for epoch in range(self.epochs):
             # Training
-            start = time.time()
+            epoch_start_time = time.time()
             train_losses = []
             train_metrics = []
             
@@ -95,25 +124,38 @@ class JaxRunner(Runner):
                 batch_y = trainY[i * self.batch_size : (i + 1) * self.batch_size]
 
                 self.key, subkey = jax.random.split(self.key)
-                self.state, loss, metric = mlp_train_step(self.state, (batch_x, batch_y), subkey)
+                self.state, loss, metric = classif_train_step(self.state, (batch_x, batch_y), subkey)
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
+                # Check if a sample should be obtained
+                samples_per_epoch = 4
+                batches_per_sample = max(1, num_batches // samples_per_epoch)
+        
+                if (i != 0) and (i % batches_per_sample == 0):
+                    sample = self.__record_sample()
+                    sample["epoch"] = epoch
+                    samples_logs.append(sample)
+
             # Validation
-            val_loss, val_accuracy = mlp_eval_step(self.state, (jnp.array(validX), jnp.array(validY)))
+            val_loss, val_accuracy = classif_eval_step(self.state, (jnp.array(validX), jnp.array(validY)))
+            sample = self.__record_sample()
+            sample["epoch"] = epoch
+            samples_logs.append(sample)
 
             # Save metrics
             metric_name = self.config["metric_name"]
 
+            history["epoch"].append(epoch)
             history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
             history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
             history["val_loss"].append(val_loss.item())
             history[f"val_{metric_name}"].append(val_accuracy.item())
-            history["epoch_time"].append(time.time() - start)
+            history["epoch_time"].append(time.time() - epoch_start_time)
 
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_accuracy:.4f}")
-
-        return history, []
+        
+        return history, samples_logs
     
     def train(self, trainX, validX, trainY, validY):
         return self.__keras_train(trainX, validX, trainY, validY) if self.keras else self.__jax_train(trainX, validX, trainY, validY)
@@ -130,7 +172,8 @@ class JaxRunner(Runner):
     def __jax_evaluate(self, testX, testY):
         
         start = time.time()
-        test_loss, test_accuracy = mlp_eval_step( self.state, (jnp.array(testX), jnp.array(testY)) )
+        test_loss, test_accuracy = classif_eval_step( self.state, (jnp.array(testX), jnp.array(testY)) )
+        samples_logs = [self.__record_sample()]
 
         print(f"Loss: {test_loss:.4f} - Accuracy: {test_accuracy:.4f}")
 
@@ -139,8 +182,6 @@ class JaxRunner(Runner):
             "accuracy": test_accuracy,
             "epoch_time": time.time() - start
         }
-
-        samples_logs = {}
 
         return test_logs, samples_logs
 
