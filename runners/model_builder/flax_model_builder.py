@@ -26,6 +26,42 @@ class MlpSimple(nn.Module):
         x = nn.Dense(10)(x) # softmax is applied in loss function
 
         return x
+    
+
+class CNNSimple(nn.Module):
+
+    @nn.compact
+    def __call__(self, x, deterministic=False):
+        dropout = 0.2
+
+        # Conv layer 1
+        x = nn.Conv(32, kernel_size=(3, 3), padding='same')(x)
+        x = nn.relu(x)
+        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
+        x = nn.Dropout(dropout, deterministic=deterministic)(x)
+
+        # Conv layer 2
+        x = nn.Conv(32, kernel_size=(3, 3), padding='same')(x)
+        x = nn.relu(x)
+        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
+        x = nn.Dropout(dropout, deterministic=deterministic)(x)
+
+        # Flatten
+        x = x.reshape((x.shape[0], -1))
+
+        # Dense layers
+        x = nn.Dense(128)(x)
+        x = nn.relu(x)
+        x = nn.Dropout(dropout, deterministic=deterministic)(x)
+
+        x = nn.Dense(128)(x)
+        x = nn.relu(x)
+        x = nn.Dropout(dropout, deterministic=deterministic)(x)
+
+        x = nn.Dense(10)(x)
+
+        return x
+
 
 class FlaxModelBuilder(ModelBuilder):
 
@@ -40,11 +76,12 @@ class FlaxModelBuilder(ModelBuilder):
 
         model = MlpSimple()
 
-        dummy_input = jnp.ones((1, 784))  # Simulación de entrada para inicialización
+        # Initial state
         self.key, subkey = jax.random.split(self.key)
+        dummy_input = jnp.ones((1, 784))
         params = model.init(subkey, dummy_input)['params']
 
-        # Configuración del optimizador
+        # Optimizer
         optimizer = optax.adam(lr)
         opt_state = optimizer.init(params)
 
@@ -63,43 +100,27 @@ class FlaxModelBuilder(ModelBuilder):
 
 
     def _cnn_simple(self):
-        raise NotImplementedError()
-        """
-        activation = "relu"
-        dropout = 0.2
         lr = 1e-4
-        
-        model = Sequential([
-            Input(shape=(32, 32, 3)),
-            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same'),
-            MaxPooling2D(pool_size=(2, 2)),
-            Dropout(dropout),
-            
-            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same'),
-            MaxPooling2D(pool_size=(2, 2)),
-            Dropout(dropout),
-        
-            Flatten(),
-        
-            Dense(128, activation=activation),
-            Dropout(dropout),
-        
-            Dense(128, activation=activation),
-            Dropout(dropout),
-        
-            # Output layer
-            Dense(20, activation = "softmax")
-        ])
-        
-        # Compile the model
-        model.compile(
-            optimizer = Adam(learning_rate = lr),             
-            loss = 'sparse_categorical_crossentropy',
-            metrics = ['accuracy']
-        )
 
-        return model
-        """
+        model = CNNSimple()
+
+        # Initial state
+        self.key, subkey = jax.random.split(self.key)
+        dummy_input = jnp.ones((1, 32, 32, 3))
+        params = model.init(subkey, dummy_input)['params']
+
+        # Configuración del optimizador
+        optimizer = optax.adam(lr)
+        opt_state = optimizer.init(params)
+
+        config = {
+            "params": params,
+            "optimizer": optimizer,
+            "opt_state": opt_state,
+            "metric_name": "accuracy"
+        }
+
+        return model, config
     
 
     def _cnn_complex(self):

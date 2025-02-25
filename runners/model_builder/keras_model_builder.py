@@ -105,7 +105,7 @@ class KerasModelBuilder(ModelBuilder):
             Dropout(dropout),
         
             # Output layer
-            Dense(20, activation = "softmax")
+            Dense(10, activation = "softmax")
         ])
         
         # Compile the model
@@ -157,7 +157,7 @@ class KerasModelBuilder(ModelBuilder):
 
         # Flatten and perform final prediction
         x = GlobalAveragePooling2D()(x)
-        x = Dense(20, activation = "softmax")(x)
+        x = Dense(10, activation = "softmax")(x)
         
 
         # Build the model

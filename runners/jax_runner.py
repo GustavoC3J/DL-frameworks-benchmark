@@ -98,7 +98,6 @@ class JaxRunner(Runner):
         validX, validY = jnp.array(validX), jnp.array(validY)
 
         history = {
-            "epoch": [],
             "loss": [],
             "accuracy": [],
             "val_loss": [],
@@ -146,7 +145,6 @@ class JaxRunner(Runner):
             # Save metrics
             metric_name = self.config["metric_name"]
 
-            history["epoch"].append(epoch)
             history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
             history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
             history["val_loss"].append(val_loss.item())
