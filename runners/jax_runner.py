@@ -2,17 +2,13 @@
 import time
 import jax
 import jax.numpy as jnp
-import optax
-import flax.linen as nn
-from flax.training.train_state import TrainState
-import numpy as np
 
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import get_gpu_metrics
 from utils.metrics_callback import MetricsCallback
-from utils.jax_utils import classif_train_step, classif_eval_step
+from utils.jax_utils import TrainState, classif_train_step, classif_eval_step, regression_eval_step, regression_train_step
 
 
 class JaxRunner(Runner):
@@ -45,7 +41,8 @@ class JaxRunner(Runner):
             self.state = TrainState.create(
                 apply_fn=self.model.apply,
                 params=self.config["params"],
-                tx=self.config["optimizer"]
+                tx=self.config["optimizer"],
+                batch_stats=self.config["batch_stats"]
             )
 
 
@@ -96,18 +93,23 @@ class JaxRunner(Runner):
         # Parse data into JAX arrays
         trainX, trainY = jnp.array(trainX), jnp.array(trainY)
         validX, validY = jnp.array(validX), jnp.array(validY)
+        
+        metric_name = self.config["metric_name"]
 
         history = {
             "loss": [],
-            "accuracy": [],
+            metric_name: [],
             "val_loss": [],
-            "val_accuracy": [],
+            f"val_{metric_name}": [],
             "epoch_time": []
         }
 
         samples_logs = []
 
         num_batches = len(trainX) // self.batch_size
+
+        train_step_fn = regression_train_step if self.model_type == "lstm" else classif_train_step
+        eval_step_fn = regression_eval_step if self.model_type == "lstm" else classif_eval_step
 
         # Training start time
         self.start_time = time.time()
@@ -123,7 +125,7 @@ class JaxRunner(Runner):
                 batch_y = trainY[i * self.batch_size : (i + 1) * self.batch_size]
 
                 self.key, subkey = jax.random.split(self.key)
-                self.state, loss, metric = classif_train_step(self.state, (batch_x, batch_y), subkey)
+                self.state, loss, metric = train_step_fn(self.state, (batch_x, batch_y), subkey)
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
@@ -137,21 +139,19 @@ class JaxRunner(Runner):
                     samples_logs.append(sample)
 
             # Validation
-            val_loss, val_accuracy = classif_eval_step(self.state, (jnp.array(validX), jnp.array(validY)))
+            val_loss, val_accuracy = eval_step_fn(self.state, (jnp.array(validX), jnp.array(validY)))
             sample = self.__record_sample()
             sample["epoch"] = epoch
             samples_logs.append(sample)
 
             # Save metrics
-            metric_name = self.config["metric_name"]
-
             history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
             history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
             history["val_loss"].append(val_loss.item())
             history[f"val_{metric_name}"].append(val_accuracy.item())
             history["epoch_time"].append(time.time() - epoch_start_time)
 
-            print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {val_accuracy:.4f}")
+            print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_accuracy:.4f}")
         
         return history, samples_logs
     
@@ -168,12 +168,14 @@ class JaxRunner(Runner):
     
 
     def __jax_evaluate(self, testX, testY):
+
+        eval_step_fn = regression_eval_step if self.model_type == "lstm" else classif_eval_step
         
         start = time.time()
-        test_loss, test_accuracy = classif_eval_step( self.state, (jnp.array(testX), jnp.array(testY)) )
+        test_loss, test_accuracy = eval_step_fn( self.state, (jnp.array(testX), jnp.array(testY)) )
         samples_logs = [self.__record_sample()]
 
-        print(f"Loss: {test_loss:.4f} - Accuracy: {test_accuracy:.4f}")
+        print(f"Loss: {test_loss:.4f} - {self.config["metric_name"]}: {test_accuracy:.4f}")
 
         test_logs = {
             "loss": test_loss,

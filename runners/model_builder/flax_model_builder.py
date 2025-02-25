@@ -6,7 +6,6 @@ import flax.linen as nn
 import optax
 
 from runners.model_builder.model_builder import ModelBuilder
-from utils.jax_utils import softmax_cross_entropy, accuracy
 
 
 class MlpSimple(nn.Module):
@@ -61,6 +60,31 @@ class CNNSimple(nn.Module):
         x = nn.Dense(10)(x)
 
         return x
+    
+
+class LSTMSimple(nn.Module):
+    cells: int
+    dropout: str
+
+    @nn.compact
+    def __call__(self, x, deterministic=False):
+
+        x = nn.RNN(nn.OptimizedLSTMCell(self.cells))(x)
+        x = nn.BatchNorm(use_running_average=deterministic)(x)
+        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+
+        x = nn.RNN(nn.OptimizedLSTMCell(self.cells))(x)
+        x = nn.BatchNorm(use_running_average=deterministic)(x)
+        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+
+        x = nn.Dense(16)(x)
+        x = nn.relu(x)
+        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+
+        # Output (trip count)
+        x = nn.Dense(1)(x)
+
+        return x
 
 
 class FlaxModelBuilder(ModelBuilder):
@@ -109,7 +133,7 @@ class FlaxModelBuilder(ModelBuilder):
         dummy_input = jnp.ones((1, 32, 32, 3))
         params = model.init(subkey, dummy_input)['params']
 
-        # Configuración del optimizador
+        # Optimizer
         optimizer = optax.adam(lr)
         opt_state = optimizer.init(params)
 
@@ -128,43 +152,36 @@ class FlaxModelBuilder(ModelBuilder):
     
 
     def _lstm_simple(self):
-        raise NotImplementedError()
-        """
         interval = 10
         window = 48 * 60 // interval
         
         cells = 32
-        activation = "tanh"
         dropout = 0.1
         lr = 1e-4
+
+        model = LSTMSimple(cells, dropout)
         
-        # Build the model
-        model = Sequential([
-            Input(shape=(window, 11)),
+        # Initial state
+        self.key, subkey = jax.random.split(self.key)
+        dummy_input = jnp.ones((1, window, 11))
+        variables = model.init(subkey, dummy_input)
 
-            LSTM(cells, activation=activation, return_sequences=True),
-            BatchNormalization(),
-            Dropout(dropout),
+        params = variables['params']
+        batch_stats = variables['batch_stats']
 
-            LSTM(cells, activation=activation),
-            BatchNormalization(),
-            Dropout(dropout),
+        # Optimizer
+        optimizer = optax.adam(lr)
+        opt_state = optimizer.init(params)
 
-            Dense(16, activation = activation),
-            Dropout(dropout),
+        config = {
+            "params": params,
+            "optimizer": optimizer,
+            "opt_state": opt_state,
+            "batch_stats": batch_stats,
+            "metric_name": "mae"
+        }
 
-            Dense(1) # Output (trip count)
-        ])
-
-        # Compile the model
-        model.compile(
-            optimizer = Adam(learning_rate = lr),             
-            loss = 'mse',
-            metrics = ['mae']
-        )
-        
-        return model
-        """
+        return model, config
 
     def _lstm_complex(self):
         raise NotImplementedError()

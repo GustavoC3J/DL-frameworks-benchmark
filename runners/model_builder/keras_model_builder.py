@@ -178,7 +178,6 @@ class KerasModelBuilder(ModelBuilder):
         window = 48 * 60 // interval
         
         cells = 32
-        activation = "tanh"
         dropout = 0.1
         lr = 1e-4
         
@@ -186,15 +185,15 @@ class KerasModelBuilder(ModelBuilder):
         model = Sequential([
             Input(shape=(window, 11)),
 
-            LSTM(cells, activation=activation, return_sequences=True),
+            LSTM(cells, return_sequences=True),
             BatchNormalization(),
             Dropout(dropout),
 
-            LSTM(cells, activation=activation),
+            LSTM(cells),
             BatchNormalization(),
             Dropout(dropout),
 
-            Dense(16, activation = activation),
+            Dense(16),
             Dropout(dropout),
 
             Dense(1) # Output (trip count)
@@ -215,7 +214,6 @@ class KerasModelBuilder(ModelBuilder):
 
         lstm_layers = 8
         cells = 512
-        activation = "tanh"
         dropout = 0.4
         lr = 1e-4
         
@@ -230,21 +228,21 @@ class KerasModelBuilder(ModelBuilder):
             if (i > (lstm_layers // 2)):
                 cells = cells // 2
 
-            model.add(Bidirectional(LSTM(cells, activation = activation, return_sequences = (i < lstm_layers)))) # Last LSTM layer doesn't return sequences
+            model.add(Bidirectional(LSTM(cells, return_sequences = (i < lstm_layers)))) # Last LSTM layer doesn't return sequences
             model.add(BatchNormalization())
             model.add(Dropout(dropout))
 
             
         # Output layer
-        model.add(Dense(256, activation = activation))
+        model.add(Dense(256))
         model.add(BatchNormalization())
         model.add(Dropout(0.2))
 
-        model.add(Dense(128, activation = activation))
+        model.add(Dense(128))
         model.add(BatchNormalization())
         model.add(Dropout(0.2))
 
-        model.add(Dense(64, activation = activation))
+        model.add(Dense(64))
         model.add(BatchNormalization())
         model.add(Dropout(0.1))
         

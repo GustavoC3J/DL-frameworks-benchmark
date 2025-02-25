@@ -126,7 +126,7 @@ class DataLoader():
         df = self.__transform(df, interval)
 
         if (dataset_type == "train"):
-            # Scale attributes between 0 and 1
+            # Scale attributes
             self.scaler = StandardScaler()
             df = pd.DataFrame(self.scaler.fit_transform(df), columns=df.columns)
 
