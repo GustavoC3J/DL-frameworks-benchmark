@@ -4,7 +4,41 @@ import torch.optim as optim
 
 
 from runners.model_builder.model_builder import ModelBuilder
-from utils.torch_utils import accuracy
+from utils.torch_utils import accuracy, mae
+
+
+class LSTMSimple(nn.Module):
+    def __init__(self, window, cells, dropout):
+        super(LSTMSimple, self).__init__()
+        
+        self.lstm1 = nn.LSTM(input_size=11, hidden_size=cells, batch_first=True)
+        self.batchnorm1 = nn.BatchNorm1d(window)
+        self.dropout1 = nn.Dropout(dropout)
+        
+        self.lstm2 = nn.LSTM(input_size=cells, hidden_size=cells, batch_first=True)
+        self.batchnorm2 = nn.BatchNorm1d(window)
+        self.dropout2 = nn.Dropout(dropout)
+        
+        self.linear3 = nn.Linear(cells, 16)
+        self.dropout3 = nn.Dropout(dropout)
+        
+        self.output = nn.Linear(16, 1)
+        
+    def forward(self, x):
+        x, _ = self.lstm1(x)
+        x = self.batchnorm1(x)
+        x = self.dropout1(x)
+        
+        x, _ = self.lstm2(x)
+        x = self.batchnorm2(x)
+        x = self.dropout2(x)
+        
+        x = x[:, -1, :]  # Take last element
+        x = self.linear3(x)
+        x = self.dropout3(x)
+        
+        x = self.output(x)
+        return x
 
 
 class TorchModelBuilder(ModelBuilder):
@@ -90,41 +124,24 @@ class TorchModelBuilder(ModelBuilder):
     
 
     def _lstm_simple(self):
-        """
         interval = 10
         window = 48 * 60 // interval
         
         cells = 32
         dropout = 0.1
         lr = 1e-4
-        
-        # Build the model
-        model = Sequential([
-            Input(shape=(window, 11)),
 
-            LSTM(cells, return_sequences=True),
-            BatchNormalization(),
-            Dropout(dropout),
+        # It is needed a module for LSTMs
+        model = LSTMSimple(window, cells, dropout)
 
-            LSTM(cells),
-            BatchNormalization(),
-            Dropout(dropout),
+        config = {
+            "optimizer": optim.Adam(model.parameters(), lr=lr),
+            "loss_fn": nn.MSELoss(),
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
 
-            Dense(16),
-            Dropout(dropout),
-
-            Dense(1) # Output (trip count)
-        ])
-
-        # Compile the model
-        model.compile(
-            optimizer = Adam(learning_rate = lr),             
-            loss = 'mse',
-            metrics = ['mae']
-        )
-        
-        return model
-        """
+        return model, config
 
     def _lstm_complex(self):
         raise NotImplementedError()

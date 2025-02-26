@@ -59,9 +59,12 @@ class TorchRunner(Runner):
     def __torch_train(self, trainX, validX, trainY, validY):
         
         trainX = to_float_tensor(trainX, self.device)
-        trainY = to_long_tensor( trainY, self.device)
         validX = to_float_tensor(validX, self.device)
-        validY = to_long_tensor( validY, self.device)
+
+        y_to_tensor_fn = to_float_tensor if (self.model_type == "lstm") else to_long_tensor
+
+        trainY = y_to_tensor_fn( trainY, self.device)
+        validY = y_to_tensor_fn( validY, self.device)
 
         if (self.model_type == "cnn"):
             # Switch to (batch_size, channels, height, width)
@@ -99,7 +102,10 @@ class TorchRunner(Runner):
                 batch_y = trainY[i * self.batch_size : (i + 1) * self.batch_size]
                 
                 self.config["optimizer"].zero_grad()
+
                 outputs = self.model(batch_x)
+                if self.model_type == "lstm": outputs = outputs.squeeze(1)
+
                 loss = self.config["loss_fn"](outputs, batch_y)
                 loss.backward()
                 self.config["optimizer"].step()
@@ -117,9 +123,11 @@ class TorchRunner(Runner):
                     samples_logs.append(sample)
 
             # Validation
-            test_outputs = self.model(validX)
-            val_loss = self.config["loss_fn"](test_outputs, validY).item()
-            val_metric = self.config["metric_fn"](test_outputs, validY)
+            val_outputs = self.model(validX)
+            if self.model_type == "lstm": val_outputs = val_outputs.squeeze(1)
+
+            val_loss = self.config["loss_fn"](val_outputs, validY).item()
+            val_metric = self.config["metric_fn"](val_outputs, validY)
 
             sample = record_sample(start_time, self.gpus)
             sample["epoch"] = epoch
@@ -139,7 +147,6 @@ class TorchRunner(Runner):
 
     def train(self, trainX, validX, trainY, validY):
         train_fn = self.__keras_train if self.keras else self.__torch_train
-        print(type(trainX), type(validX), type(trainY), type(validY))
         return train_fn(trainX, validX, trainY, validY)
 
 
@@ -153,7 +160,9 @@ class TorchRunner(Runner):
 
     def __torch_evaluate(self, testX, testY):
         testX = to_float_tensor(testX, self.device)
-        testY = to_long_tensor(testY, self.device)
+        
+        y_to_tensor_fn = to_float_tensor if (self.model_type == "lstm") else to_long_tensor
+        testY = y_to_tensor_fn(testY, self.device)
 
         if (self.model_type == "cnn"):
             # Switch to (batch_size, channels, height, width)
@@ -164,6 +173,8 @@ class TorchRunner(Runner):
         self.model.eval()
         with torch.no_grad():
             test_outputs = self.model(testX)
+            if self.model_type == "lstm": test_outputs = test_outputs.squeeze(1)
+
             test_loss = self.config["loss_fn"](test_outputs, testY).item()
             test_metric = self.config["metric_fn"](test_outputs, testY)
 
