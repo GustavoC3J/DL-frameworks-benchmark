@@ -63,6 +63,11 @@ class TorchRunner(Runner):
         validX = to_float_tensor(validX, self.device)
         validY = to_long_tensor( validY, self.device)
 
+        if (self.model_type == "cnn"):
+            # Switch to (batch_size, channels, height, width)
+            trainX = torch.permute(trainX, (0, 3, 2, 1))
+            validX = torch.permute(validX, (0, 3, 2, 1))
+
         num_batches = len(trainX) // self.batch_size
         
         metric_name = self.config["metric_name"]
@@ -149,6 +154,10 @@ class TorchRunner(Runner):
     def __torch_evaluate(self, testX, testY):
         testX = to_float_tensor(testX, self.device)
         testY = to_long_tensor(testY, self.device)
+
+        if (self.model_type == "cnn"):
+            # Switch to (batch_size, channels, height, width)
+            testX = torch.permute(testX, (0, 3, 2, 1))
 
         start = time.time()
 
