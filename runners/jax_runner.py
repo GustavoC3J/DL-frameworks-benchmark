@@ -42,7 +42,7 @@ class JaxRunner(Runner):
                 apply_fn=self.model.apply,
                 params=self.config["params"],
                 tx=self.config["optimizer"],
-                batch_stats=self.config["batch_stats"]
+                batch_stats=self.config.get("batch_stats", None)
             )
 
 
@@ -172,14 +172,14 @@ class JaxRunner(Runner):
         eval_step_fn = regression_eval_step if self.model_type == "lstm" else classif_eval_step
         
         start = time.time()
-        test_loss, test_accuracy = eval_step_fn( self.state, (jnp.array(testX), jnp.array(testY)) )
+        test_loss, test_metric = eval_step_fn( self.state, (jnp.array(testX), jnp.array(testY)) )
         samples_logs = [self.__record_sample()]
 
-        print(f"Loss: {test_loss:.4f} - {self.config["metric_name"]}: {test_accuracy:.4f}")
+        print(f"Loss: {test_loss:.4f} - {self.config['metric_name']}: {test_metric:.4f}")
 
         test_logs = {
             "loss": test_loss,
-            "accuracy": test_accuracy,
+            self.config['metric_name']: test_metric,
             "epoch_time": time.time() - start
         }
 
