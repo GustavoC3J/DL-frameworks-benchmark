@@ -2,9 +2,10 @@
 datasets/*
 !datasets/*.py
 
-# Exclude results but keep the directory
+# Exclude results but keep the directory and final results
 results/*
 !results/.gitkeep
+!results/final
 
 
 # Byte-compiled / optimized / DLL files
