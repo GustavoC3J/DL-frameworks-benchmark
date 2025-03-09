@@ -27,14 +27,13 @@ case $LIBRARY in
         ;;
 esac
 
-# Set Keras backend, if Keras is used (default: tf)
-if [[ "$LIBRARY" != "tf" ]] && [[ "$BACKEND" == *"-keras" ]]; then
+# Set Keras backend (default: tf)
+if [[ "$LIBRARY" != "tf" ]]; then
     export KERAS_BACKEND=$LIBRARY
 fi
 
-# Load conda and environment
-#if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
-if source "/frontend/gustcort/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
+# Load conda and environment 
+if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
     echo "Environment: $CONDA_ENV"
 
     # Run experiment
