@@ -19,8 +19,6 @@ class JaxRunner(Runner):
         
         # Fix the seed
         self.key = jax.random.key(seed=self.seed)
-        
-        self.devices = jax.devices()
 
     
     def define_model(self):

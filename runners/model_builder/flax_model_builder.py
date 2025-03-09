@@ -1,5 +1,6 @@
 
 
+from typing import Any
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -65,17 +66,35 @@ class CNNSimple(nn.Module):
 class LSTMSimple(nn.Module):
     cells: int
     dropout: str
+    key: Any
 
     @nn.compact
     def __call__(self, x, deterministic=False):
 
-        x = nn.RNN(nn.OptimizedLSTMCell(self.cells))(x)
+        key1, key2 = jax.random.split(self.key)
+        
+        ScanLSTM = nn.scan(
+                nn.OptimizedLSTMCell, variable_broadcast="params",
+                split_rngs={"params": False}, in_axes=1, out_axes=1)
+        
+        input_shape = x[:, 0].shape
+
+        # First LSTM layer
+        lstm = ScanLSTM(self.cells)
+        carry = lstm.initialize_carry(key1, input_shape)
+        _, x = lstm(carry, x)
+        x = nn.BatchNorm(use_running_average=deterministic)(x)
+        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+        
+        # Second LSTM layer
+        lstm2 = ScanLSTM(self.cells)
+        carry = lstm2.initialize_carry(key2, input_shape)
+        _, x = lstm2(carry, x)
         x = nn.BatchNorm(use_running_average=deterministic)(x)
         x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
 
-        x = nn.RNN(nn.OptimizedLSTMCell(self.cells))(x)
-        x = nn.BatchNorm(use_running_average=deterministic)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+        # Keep only the last element of the window
+        x = x[:, -1, :]
 
         x = nn.Dense(16)(x)
         x = nn.relu(x)
@@ -83,8 +102,9 @@ class LSTMSimple(nn.Module):
 
         # Output (trip count)
         x = nn.Dense(1)(x)
-
+        
         return x
+
 
 
 class FlaxModelBuilder(ModelBuilder):
@@ -159,12 +179,13 @@ class FlaxModelBuilder(ModelBuilder):
         dropout = 0.1
         lr = 1e-4
 
-        model = LSTMSimple(cells, dropout)
+        self.key, model_key, init_key = jax.random.split(self.key, num=3)
+
+        model = LSTMSimple(cells, dropout, model_key)
         
         # Initial state
-        self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, window, 11))
-        variables = model.init(subkey, dummy_input)
+        variables = model.init(init_key, dummy_input)
 
         params = variables['params']
         batch_stats = variables['batch_stats']
