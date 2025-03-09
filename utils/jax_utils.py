@@ -56,7 +56,6 @@ def classif_eval_step(state, batch):
     return loss, metric
 
 
-
 @jax.jit
 def regression_train_step(state, batch, key):
     # Train step used in MLP and CNN models
