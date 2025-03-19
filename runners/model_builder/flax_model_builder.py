@@ -97,7 +97,6 @@ class LSTMSimple(nn.Module):
         x = x[:, -1, :]
 
         x = nn.Dense(16)(x)
-        x = nn.relu(x)
         x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
 
         # Output (trip count)
