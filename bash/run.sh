@@ -4,8 +4,8 @@
 BACKEND=$1  # library or library-keras
 MODEL_TYPE=$2
 MODEL_COMPLEXITY="simple"
-GPUS=$3
-SEED=$4
+GPUS=$4
+SEED=$5
 
 # Get the library
 LIBRARY=$(echo "$BACKEND" | cut -d'-' -f1)
