@@ -1,4 +1,5 @@
 
+from datasets.data_loader_factory import DataLoaderFactory
 import tensorflow as tf
 
 from runners.model_builder.keras_model_builder import KerasModelBuilder
@@ -11,6 +12,9 @@ class TFRunner(Runner):
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
+
+        # Dataloader
+        self.dl_factory = DataLoaderFactory("tf")
         
         # Fix the seed
         tf.random.set_seed(self.seed)
@@ -30,15 +34,16 @@ class TFRunner(Runner):
 
 
     def train(self, trainX, validX, trainY, validY):
+        train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
+        val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
+
         callback = MetricsCallback(self.gpus)
         
         # Train the model
         history = self.model.fit(
-            trainX,
-            trainY,
+            train_dl,
+            validation_data = val_dl,
             epochs = self.epochs,
-            batch_size = len(self.gpus) * self.batch_size,
-            validation_data = (validX, validY),
             callbacks=[callback]
         )
     
@@ -46,9 +51,11 @@ class TFRunner(Runner):
 
 
     def evaluate(self, testX, testY):
+        test_dl = self.dl_factory.fromNumpy(testX, testY, self.batch_size, shuffle=False)
+        
         callback = MetricsCallback(self.gpus)
 
-        self.model.evaluate(testX, testY, callbacks=[callback])
+        self.model.evaluate(test_dl, callbacks=[callback])
 
         return callback.test_logs, callback.samples_logs
 
