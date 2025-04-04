@@ -3,7 +3,7 @@
 # Params
 BACKEND=$1  # library or library-keras
 MODEL_TYPE=$2
-MODEL_COMPLEXITY="simple"
+MODEL_COMPLEXITY=$3
 GPUS=$4
 SEED=$5
 
