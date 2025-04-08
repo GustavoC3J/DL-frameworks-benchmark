@@ -8,7 +8,6 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
 from utils.metrics_callback import MetricsCallback
-from utils.torch_utils import to_float_tensor, to_long_tensor
 from datasets.data_loader_factory import DataLoaderFactory
 
 

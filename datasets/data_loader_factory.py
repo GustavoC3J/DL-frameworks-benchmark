@@ -22,7 +22,7 @@ class DataLoaderFactory:
                 Y_tensor
             )
 
-            return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=2, pin_memory=True)
+            return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0, pin_memory=True)
 
         elif self.framework == "tf":
             import tensorflow as tf

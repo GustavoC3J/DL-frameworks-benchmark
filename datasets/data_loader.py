@@ -30,7 +30,7 @@ class DataLoader():
             data = pd.read_csv('datasets/fashion-mnist/fashion-mnist_train.csv')
 
             # Extract labels and pixel values
-            labels = data['label']
+            labels = data['label'].values
             images = data.drop('label', axis=1).values
 
             # Scale the images between 0 and 1
@@ -45,7 +45,7 @@ class DataLoader():
             test = pd.read_csv('datasets/fashion-mnist/fashion-mnist_test.csv')
 
             # Extract labels and pixel values
-            testY = test['label']
+            testY = test['label'].values
             testX = test.drop('label', axis=1).values / 255.0
 
             return (testX, testY)
