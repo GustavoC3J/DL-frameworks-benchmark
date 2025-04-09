@@ -1,8 +1,8 @@
 
 
-from keras.layers import (BatchNormalization, Conv2D, Dense,
-                                     Dropout, Flatten, GlobalAveragePooling2D,
-                                     Input, MaxPooling2D, ReLU, add, LSTM, Bidirectional)
+from keras.layers import (LSTM, BatchNormalization, Conv2D,
+                          Dense, Dropout, Flatten, GlobalAveragePooling2D,
+                          Input, MaxPooling2D, ReLU, Activation, add)
 from keras.models import Model, Sequential
 from keras.optimizers import Adam
 
@@ -44,11 +44,11 @@ class KerasModelBuilder(ModelBuilder):
 
     def _mlp_complex(self):
         activation = "relu"
-        dropout = 0.2
+        dropout = 0.4
         lr = 1e-4
 
-        hidden_layers = 21
-        final_units = 128  # Last hidden layers will have 128 units
+        hidden_layers = 15
+        final_units = 64  # Last hidden layers will have these units
         layers_per_group = 3
 
         # Calculate initial units based on number of hidden layers
@@ -194,6 +194,8 @@ class KerasModelBuilder(ModelBuilder):
             Dropout(dropout),
 
             Dense(16),
+            BatchNormalization(),
+            Activation("tanh"),
             Dropout(dropout),
 
             Dense(1) # Output (trip count)
@@ -228,7 +230,7 @@ class KerasModelBuilder(ModelBuilder):
             if (i > (lstm_layers // 2)):
                 cells = cells // 2
 
-            model.add(Bidirectional(LSTM(cells, return_sequences = (i < lstm_layers)))) # Last LSTM layer doesn't return sequences
+            model.add(LSTM(cells, return_sequences = (i < lstm_layers))) # Last LSTM layer doesn't return sequences
             model.add(BatchNormalization())
             model.add(Dropout(dropout))
 
@@ -236,14 +238,17 @@ class KerasModelBuilder(ModelBuilder):
         # Output layer
         model.add(Dense(256))
         model.add(BatchNormalization())
+        model.add(Activation("tanh"))
         model.add(Dropout(0.2))
 
         model.add(Dense(128))
         model.add(BatchNormalization())
+        model.add(Activation("tanh"))
         model.add(Dropout(0.2))
 
         model.add(Dense(64))
         model.add(BatchNormalization())
+        model.add(Activation("tanh"))
         model.add(Dropout(0.1))
         
         model.add(Dense(1))
