@@ -21,7 +21,11 @@ class TorchRunner(Runner):
         self.dl_factory = DataLoaderFactory("torch")
         
         # GPU
-        self.device = torch.device(f"cuda:{self.gpus[0]}")
+        if len(self.gpus) == 1:
+            # It is always 0, independently of CUDA index
+            self.device = torch.device(f"cuda:0")
+        else:
+            raise NotImplementedError()
         
         # Fix the seed
         torch.manual_seed(self.seed)

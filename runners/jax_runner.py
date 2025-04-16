@@ -24,14 +24,14 @@ class JaxRunner(Runner):
         # Fix the seed
         self.key = jax.random.key(seed=self.seed)
 
-    
-    def define_model(self):
-
-        if len(self.gpus) > 1:
+        # Set GPUs
+        if len(self.gpus) != 1:
             raise NotImplementedError("Multiple GPU training is not implemented")
         
-        jax.config.update("jax_default_device", jax.devices("gpu")[self.gpus[0]])
-        
+        jax.config.update("jax_default_device", jax.devices("gpu")[0])
+
+    
+    def define_model(self):
 
         if self.keras:
             self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()

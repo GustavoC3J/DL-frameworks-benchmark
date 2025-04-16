@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import keras
 import time
 from datetime import datetime
 
@@ -24,7 +23,7 @@ def parse_params():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--gpus", type=str, default="0")
+    parser.add_argument("--gpus", type=str, default="2")
 
     return parser.parse_args()
 
@@ -102,6 +101,9 @@ def run_experiment(runner, params):
 
 if __name__ == "__main__":
     params = parse_params()
+
+    # Set GPUs to use
+    os.environ["CUDA_VISIBLE_DEVICES"] = params.gpus
     
     # backend is the library used follow by "-keras" if Keras is used
     segments = params.backend.split("-", 1)
@@ -110,6 +112,7 @@ if __name__ == "__main__":
     use_keras = len(segments) > 1 and segments[1] == "keras"
 
     if (use_keras):
+        import keras
         keras.utils.set_random_seed(params.seed)
 
     # Load the corresponding runner
