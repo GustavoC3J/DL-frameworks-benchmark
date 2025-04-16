@@ -7,19 +7,24 @@ from flax.training import train_state
 class TrainState(train_state.TrainState):
   batch_stats: Any
 
+
+@jax.jit
 def softmax_cross_entropy(logits, y):
     return optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=y).mean()
     
 
+@jax.jit
 def accuracy(logits, y):
     preds = jnp.argmax(logits, axis=-1)
     return jnp.mean(preds == y)
 
 
+@jax.jit
 def mse(preds, y):
     return jnp.mean((preds - y) ** 2)
 
 
+@jax.jit
 def mae(preds, y):
     return jnp.mean(jnp.abs(preds - y))
 

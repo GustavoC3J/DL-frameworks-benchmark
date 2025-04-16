@@ -7,103 +7,9 @@ import flax.linen as nn
 import optax
 
 from runners.model_builder.model_builder import ModelBuilder
-
-
-class MlpSimple(nn.Module):
-    
-    @nn.compact
-    def __call__(self, x, deterministic=False):
-        dropout = 0.2
-
-        x = nn.Dense(256)(x)
-        x = nn.relu(x)
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-        
-        x = nn.Dense(128)(x)
-        x = nn.relu(x)
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-
-        x = nn.Dense(10)(x) # softmax is applied in loss function
-
-        return x
-    
-
-class CNNSimple(nn.Module):
-
-    @nn.compact
-    def __call__(self, x, deterministic=False):
-        dropout = 0.2
-
-        # Conv layer 1
-        x = nn.Conv(32, kernel_size=(3, 3), padding='same')(x)
-        x = nn.relu(x)
-        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-
-        # Conv layer 2
-        x = nn.Conv(32, kernel_size=(3, 3), padding='same')(x)
-        x = nn.relu(x)
-        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-
-        # Flatten
-        x = x.reshape((x.shape[0], -1))
-
-        # Dense layers
-        x = nn.Dense(128)(x)
-        x = nn.relu(x)
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-
-        x = nn.Dense(128)(x)
-        x = nn.relu(x)
-        x = nn.Dropout(dropout, deterministic=deterministic)(x)
-
-        x = nn.Dense(10)(x)
-
-        return x
-    
-
-class LSTMSimple(nn.Module):
-    cells: int
-    dropout: str
-    key: Any
-
-    @nn.compact
-    def __call__(self, x, deterministic=False):
-
-        key1, key2 = jax.random.split(self.key)
-        
-        ScanLSTM = nn.scan(
-                nn.OptimizedLSTMCell, variable_broadcast="params",
-                split_rngs={"params": False}, in_axes=1, out_axes=1)
-        
-        input_shape = x[:, 0].shape
-
-        # First LSTM layer
-        lstm = ScanLSTM(self.cells)
-        carry = lstm.initialize_carry(key1, input_shape)
-        _, x = lstm(carry, x)
-        x = nn.BatchNorm(use_running_average=deterministic)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
-        
-        # Second LSTM layer
-        lstm2 = ScanLSTM(self.cells)
-        carry = lstm2.initialize_carry(key2, input_shape)
-        _, x = lstm2(carry, x)
-        x = nn.BatchNorm(use_running_average=deterministic)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
-
-        # Keep only the last element of the window
-        x = x[:, -1, :]
-
-        x = nn.Dense(16)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
-
-        # Output (trip count)
-        x = nn.Dense(1)(x)
-        
-        return x
-
+from runners.model_builder.models.flax.CNNSimple import CNNSimple
+from runners.model_builder.models.flax.MLPSimple import MLPSimple
+from runners.model_builder.models.flax.LSTMSimple import LSTMSimple
 
 
 class FlaxModelBuilder(ModelBuilder):
@@ -117,7 +23,7 @@ class FlaxModelBuilder(ModelBuilder):
     def _mlp_simple(self):
         lr = 1e-4
 
-        model = MlpSimple()
+        model = MLPSimple()
 
         # Initial state
         self.key, subkey = jax.random.split(self.key)
