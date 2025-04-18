@@ -34,8 +34,29 @@ class TorchRunner(Runner):
         torch.cuda.manual_seed_all(self.seed)
 
         # Set global floating point precision
+        self.__set_precision()
+
+    
+    def __set_precision(self):
         if (self.keras):
             keras.config.set_dtype_policy(self.precision)
+        else:
+            if self.precision == "float32":
+                self.dtype = torch.float32
+                self.amp = False
+
+            elif self.precision == "mixed_float16":
+                self.dtype = torch.float32
+                self.amp = True # AMP = Automatic Mixed Precision
+                self.amp_dtype = torch.float16
+                self.scaler = torch.amp.GradScaler()
+
+            elif self.precision == "bfloat16":
+                self.dtype = torch.bfloat16
+                self.amp = False
+
+            else:
+                raise ValueError("Unsupported precision: " + self.precision)
 
     
     def define_model(self):
@@ -46,12 +67,12 @@ class TorchRunner(Runner):
             self.model, self.config = TorchModelBuilder(self.model_type, self.model_complexity).build()
 
         
-        # Move the model to the GPU
-        self.model.to(self.device)
+        # Move the model to the GPU and set it's precision
+        self.model.to(device=self.device, dtype=self.dtype)
 
         # If there are multiple GPUs, 
-        if len(self.gpus) > 1:
-            self.model = torch.nn.DistributedDataParallel(self.model, device_ids=self.gpus)
+        #if len(self.gpus) > 1:
+            #self.model = torch.nn.DistributedDataParallel(self.model, device_ids=self.gpus)
 
 
 
@@ -99,22 +120,43 @@ class TorchRunner(Runner):
             self.model.train()
             
             for i, (batch_x, batch_y) in enumerate(train_dl):
-
-                # Send data to GPU
-                batch_x = batch_x.to(self.device)
-                batch_y = batch_y.to(self.device)
+                # Send data to GPU and set dtype
+                # If output has to be an integer, then batch_y dtype is not modified
+                batch_x = batch_x.to(device=self.device, dtype=self.dtype)
+                batch_y = batch_y.to(device=self.device, dtype=torch.int64 if batch_y.dtype == torch.int64 else self.dtype)
 
                 self.config["optimizer"].zero_grad()
 
-                outputs = self.model(batch_x)
-                if self.model_type == "lstm": outputs = outputs.squeeze(1)
+                if self.amp:
+                    # Get outputs and loss using lower precision
+                    with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
+                        outputs = self.model(batch_x)
 
-                loss = self.config["loss_fn"](outputs, batch_y)
-                loss.backward()
-                self.config["optimizer"].step()
+                        if self.model_type == "lstm":
+                            outputs = outputs.squeeze(1)
+
+                        loss = self.config["loss_fn"](outputs, batch_y)
+                        metric = self.config["metric_fn"](outputs, batch_y)
+                        
+                    # Perform updates in higher precision
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.config["optimizer"])
+                    self.scaler.update()
+                        
+                else:
+                    # Get loss and perform updates using the same precision
+                    outputs = self.model(batch_x)
+                    if self.model_type == "lstm":
+                        outputs = outputs.squeeze(1)
+
+                    loss = self.config["loss_fn"](outputs, batch_y)
+                    metric = self.config["metric_fn"](outputs, batch_y)
+
+                    loss.backward()
+                    self.config["optimizer"].step()
                 
                 train_losses.append(loss.item())
-                train_metrics.append(self.config["metric_fn"](outputs, batch_y))
+                train_metrics.append(metric)
 
                 # Check if a sample should be obtained
                 samples_per_epoch = 4
@@ -164,8 +206,8 @@ class TorchRunner(Runner):
 
     def __torch_evaluate(self, test_dl, training_start_time = None):
 
-        test_loss = 0
-        test_metric = 0
+        losses = []
+        metrics = []
         num_batches = len(test_dl)
         samples_logs = []
 
@@ -177,15 +219,30 @@ class TorchRunner(Runner):
         with torch.no_grad():
             for i, (batch_x, batch_y) in enumerate(test_dl):
                 # Send data to GPU
-                batch_x = batch_x.to(self.device)
-                batch_y = batch_y.to(self.device)
+                batch_x = batch_x.to(device=self.device, dtype=self.dtype)
+                batch_y = batch_y.to(device=self.device, dtype=torch.long if batch_y.dtype == torch.long else self.dtype)
 
-                test_outputs = self.model(batch_x)
-                if self.model_type == "lstm":
-                    test_outputs = test_outputs.squeeze(1)
+                if self.amp:
+                    with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
+                        test_outputs = self.model(batch_x)
 
-                test_loss += self.config["loss_fn"](test_outputs, batch_y).item()
-                test_metric += self.config["metric_fn"](test_outputs, batch_y)
+                        if self.model_type == "lstm":
+                            test_outputs = test_outputs.squeeze(1)
+
+                        loss = self.config["loss_fn"](test_outputs, batch_y)
+                        metric = self.config["metric_fn"](test_outputs, batch_y)
+
+                else:
+                    test_outputs = self.model(batch_x)
+
+                    if self.model_type == "lstm":
+                        test_outputs = test_outputs.squeeze(1)
+
+                    loss = self.config["loss_fn"](test_outputs, batch_y)
+                    metric = self.config["metric_fn"](test_outputs, batch_y)
+
+                losses.append(loss.item())
+                metrics.append(metric)
 
                 # Check if a sample should be obtained
                 samples_per_epoch = 4
@@ -199,8 +256,8 @@ class TorchRunner(Runner):
                     samples_logs.append(sample)
 
         # Calculate mean
-        test_loss /= num_batches
-        test_metric /= num_batches
+        test_loss = np.mean(np.array(losses))
+        test_metric = np.mean(np.array(metrics))
     
         # Print log message if it is test
         if training_start_time is None:

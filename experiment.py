@@ -78,6 +78,7 @@ def run_experiment(runner, params):
         'backend': params.backend,
         'model_type': params.model_type,
         'model_complexity': params.model_complexity,
+        'precision': params.precision,
         'epochs': params.epochs,
         'batch_size': params.batch_size,
         'seed': params.seed,
