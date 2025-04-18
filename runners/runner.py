@@ -9,7 +9,7 @@ import numpy as np
 
 class Runner(ABC):
 
-    def __init__(self, model_type, model_complexity, keras, epochs, batch_size, seed, gpus):
+    def __init__(self, model_type, model_complexity, keras, epochs, batch_size, seed, gpus, precision):
 
         self.model_type = model_type
         self.keras = keras
@@ -17,6 +17,7 @@ class Runner(ABC):
         self.epochs = epochs
         self.batch_size = batch_size
         self.gpus = [int(gpu) for gpu in gpus.split(",") if gpu.isdigit()]
+        self.precision = precision
         
         # Fix seed
         self.seed = seed

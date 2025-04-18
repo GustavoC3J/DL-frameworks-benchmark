@@ -1,6 +1,7 @@
 
 from datasets.data_loader_factory import DataLoaderFactory
 import tensorflow as tf
+import keras
 
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
@@ -18,6 +19,9 @@ class TFRunner(Runner):
         
         # Fix the seed
         tf.random.set_seed(self.seed)
+
+        # Set global floating point precision
+        keras.config.set_dtype_policy(self.precision)
 
     
     def define_model(self):

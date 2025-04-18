@@ -18,6 +18,7 @@ def parse_params():
     parser.add_argument("backend", type=str)
     parser.add_argument("model_type", type=str)
     parser.add_argument("model_complexity", type=str)
+    parser.add_argument("precision", type=str)
     
     # Optional params
     parser.add_argument("--epochs", type=int, default=100)
@@ -126,7 +127,8 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus
+            gpus = params.gpus,
+            precision = params.precision
         )
 
     elif library == "torch":
@@ -139,7 +141,8 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus
+            gpus = params.gpus,
+            precision = params.precision
         )
         
     elif library == "jax":
@@ -152,7 +155,8 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus
+            gpus = params.gpus,
+            precision = params.precision
         )
     else:
         print("Error: Unknown library")

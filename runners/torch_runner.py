@@ -1,14 +1,16 @@
 
 import time
-from runners.model_builder.torch_model_builder import TorchModelBuilder
-import torch
-import numpy as np
 
+import keras
+import numpy as np
+import torch
+
+from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
+from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
 from utils.metrics_callback import MetricsCallback
-from datasets.data_loader_factory import DataLoaderFactory
 
 
 class TorchRunner(Runner):
@@ -30,6 +32,10 @@ class TorchRunner(Runner):
         # Fix the seed
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)
+
+        # Set global floating point precision
+        if (self.keras):
+            keras.config.set_dtype_policy(self.precision)
 
     
     def define_model(self):

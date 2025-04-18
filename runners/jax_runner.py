@@ -1,15 +1,18 @@
 
 import time
-from datasets.data_loader_factory import DataLoaderFactory
+
 import jax
 import jax.numpy as jnp
+import keras
 
-from runners.model_builder.keras_model_builder import KerasModelBuilder
+from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
+from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import get_gpu_metrics, record_sample
+from utils.jax_utils import (TrainState, classif_eval_step, classif_train_step,
+                             regression_eval_step, regression_train_step)
 from utils.metrics_callback import MetricsCallback
-from utils.jax_utils import TrainState, classif_train_step, classif_eval_step, regression_eval_step, regression_train_step
 
 
 class JaxRunner(Runner):
@@ -27,8 +30,12 @@ class JaxRunner(Runner):
         # Set GPUs
         if len(self.gpus) != 1:
             raise NotImplementedError("Multiple GPU training is not implemented")
-        
-        jax.config.update("jax_default_device", jax.devices("gpu")[0])
+        else:
+            jax.config.update("jax_default_device", jax.devices("gpu")[0])
+
+        # Set global floating point precision
+        if (self.keras):
+            keras.config.set_dtype_policy(self.precision)
 
     
     def define_model(self):
