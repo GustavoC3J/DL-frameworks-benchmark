@@ -13,6 +13,7 @@ from utils.gpu_metrics import get_gpu_metrics, record_sample
 from utils.jax_utils import (TrainState, classif_eval_step, classif_train_step,
                              regression_eval_step, regression_train_step)
 from utils.metrics_callback import MetricsCallback
+from utils.precision import get_keras_precision
 
 
 class JaxRunner(Runner):
@@ -35,7 +36,7 @@ class JaxRunner(Runner):
 
         # Set global floating point precision
         if (self.keras):
-            keras.config.set_dtype_policy(self.precision)
+            keras.config.set_dtype_policy(get_keras_precision(self.precision))
 
     
     def define_model(self):

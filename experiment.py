@@ -9,6 +9,7 @@ import pandas as pd
 
 from datasets.data_loader import DataLoader
 from utils.gpu_metrics import get_gpu_memory_total
+from utils.precision import Precision
 
 
 def parse_params():
@@ -18,7 +19,7 @@ def parse_params():
     parser.add_argument("backend", type=str)
     parser.add_argument("model_type", type=str)
     parser.add_argument("model_complexity", type=str)
-    parser.add_argument("precision", type=str)
+    parser.add_argument("precision", type=Precision, choices=list(Precision))
     
     # Optional params
     parser.add_argument("--epochs", type=int, default=100)
@@ -32,7 +33,7 @@ def run_experiment(runner, params):
 
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}"
+    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
     os.makedirs(output_directory, exist_ok=True)
 
 

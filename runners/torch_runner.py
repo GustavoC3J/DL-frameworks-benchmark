@@ -11,6 +11,7 @@ from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
 from utils.metrics_callback import MetricsCallback
+from utils.precision import Precision, get_keras_precision
 
 
 class TorchRunner(Runner):
@@ -39,19 +40,19 @@ class TorchRunner(Runner):
     
     def __set_precision(self):
         if (self.keras):
-            keras.config.set_dtype_policy(self.precision)
+            keras.config.set_dtype_policy(get_keras_precision(self.precision))
         else:
-            if self.precision == "float32":
+            if self.precision == Precision.FP32:
                 self.dtype = torch.float32
                 self.amp = False
 
-            elif self.precision == "mixed_float16":
+            elif self.precision == Precision.MIXED_PRECISION:
                 self.dtype = torch.float32
                 self.amp = True # AMP = Automatic Mixed Precision
-                self.amp_dtype = torch.float16
+                self.amp_dtype = torch.bfloat16
                 self.scaler = torch.amp.GradScaler()
 
-            elif self.precision == "bfloat16":
+            elif self.precision == Precision.BF16:
                 self.dtype = torch.bfloat16
                 self.amp = False
 
