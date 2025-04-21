@@ -27,8 +27,8 @@ class TFRunner(Runner):
     def define_model(self):
     
         # Define the strategy to follow in order to balance the workload between GPUs
-        if len(self.gpus) > 1:
-            strategy = tf.distribute.MirroredStrategy( [f"GPU:{gpu}" for gpu in self.gpus] )
+        if len(self.gpu_ids) > 1:
+            strategy = tf.distribute.MirroredStrategy( [f"GPU:{gpu}" for gpu in self.gpu_ids] )
         else:
             strategy = tf.distribute.get_strategy()
         
@@ -41,7 +41,7 @@ class TFRunner(Runner):
         train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
         val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
 
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
         
         # Train the model
         history = self.model.fit(
@@ -57,7 +57,7 @@ class TFRunner(Runner):
     def evaluate(self, testX, testY):
         test_dl = self.dl_factory.fromNumpy(testX, testY, self.batch_size, shuffle=False)
         
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
 
         self.model.evaluate(test_dl, callbacks=[callback])
 

@@ -28,7 +28,7 @@ class JaxRunner(Runner):
         self.key = jax.random.key(seed=self.seed)
 
         # Set GPUs
-        if len(self.gpus) != 1:
+        if len(self.gpu_ids) != 1:
             raise NotImplementedError("Multiple GPU training is not implemented")
         else:
             jax.config.update("jax_default_device", jax.devices("gpu")[0])
@@ -59,7 +59,7 @@ class JaxRunner(Runner):
     def __keras_train(self, train_dl, val_dl):
         # Training using Keras
 
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
         
         history = self.model.fit(
             train_dl,
@@ -114,7 +114,7 @@ class JaxRunner(Runner):
                 batches_per_sample = max(1, num_batches // samples_per_epoch)
         
                 if (i != 0) and (i % batches_per_sample == 0):
-                    sample = record_sample(start_time, self.gpus)
+                    sample = record_sample(start_time, self.gpu_ids)
                     sample["epoch"] = epoch
                     samples_logs.append(sample)
 
@@ -144,7 +144,7 @@ class JaxRunner(Runner):
 
 
     def __keras_evaluate(self, test_dl):
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
 
         self.model.evaluate(test_dl, callbacks=[callback])
 
@@ -173,7 +173,7 @@ class JaxRunner(Runner):
             if (i != 0) and (i % batches_per_sample == 0):
                 sample = record_sample(
                     start_time if training_start_time is None else training_start_time,
-                    self.gpus
+                    self.gpu_ids
                 )
                 samples_logs.append(sample)
 

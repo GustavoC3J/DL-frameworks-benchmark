@@ -23,7 +23,7 @@ class TorchRunner(Runner):
         self.dl_factory = DataLoaderFactory("torch")
         
         # GPU
-        if len(self.gpus) == 1:
+        if len(self.gpu_ids) == 1:
             # It is always 0, independently of CUDA index
             self.device = torch.device(f"cuda:0")
         else:
@@ -77,7 +77,7 @@ class TorchRunner(Runner):
 
 
     def __keras_train(self, train_dl, val_dl):
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
         
         # Train the model
         history = self.model.fit(
@@ -163,7 +163,7 @@ class TorchRunner(Runner):
                 batches_per_sample = max(1, num_batches // samples_per_epoch)
         
                 if (i != 0) and (i % batches_per_sample == 0):
-                    sample = record_sample(start_time, self.gpus)
+                    sample = record_sample(start_time, self.gpu_ids)
                     sample["epoch"] = epoch
                     samples_logs.append(sample)
 
@@ -197,7 +197,7 @@ class TorchRunner(Runner):
 
 
     def __keras_evaluate(self, test_dl):
-        callback = MetricsCallback(self.gpus)
+        callback = MetricsCallback(self.gpu_ids)
 
         self.model.evaluate(test_dl, callbacks=[callback])
 
@@ -251,7 +251,7 @@ class TorchRunner(Runner):
                 if (i != 0) and (i % batches_per_sample == 0):
                     sample = record_sample(
                         start_time if training_start_time is None else training_start_time,
-                        self.gpus
+                        self.gpu_ids
                     )
                     samples_logs.append(sample)
 

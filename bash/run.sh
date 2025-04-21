@@ -5,7 +5,7 @@ BACKEND=$1  # library or library-keras
 MODEL_TYPE=$2
 MODEL_COMPLEXITY=$3
 PRECISION=$4
-GPUS=$5
+GPU_IDS=$5
 SEED=$6
 
 # Get the library
@@ -38,7 +38,7 @@ if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV
     echo "Environment: $CONDA_ENV"
 
     # Run experiment
-    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpus "$GPUS" --seed "$SEED"
+    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpu-ids "$GPU_IDS" --seed "$SEED"
 else
     echo "Error: Couldn't activate conda environment: $CONDA_ENV"
     exit 1

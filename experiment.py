@@ -22,9 +22,9 @@ def parse_params():
     
     # Optional params
     parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--gpus", type=str, default="2")
+    parser.add_argument("--gpu-ids", type=str, default="2")
 
     return parser.parse_args()
 
@@ -69,7 +69,7 @@ def run_experiment(runner, params):
     testing_time = time.time() - start
 
     # Get memory of all GPUs
-    gpu_indices = [int(gpu) for gpu in params.gpus.split(",") if gpu.isdigit()]
+    gpu_indices = [int(gpu) for gpu in params.gpu_ids.split(",") if gpu.isdigit()]
     gpu_memory_total = {
         f"gpu_{gpu['index']}_memory_total": gpu['memory_total'] for gpu in get_gpu_memory_total(gpu_indices)
     }
@@ -82,7 +82,7 @@ def run_experiment(runner, params):
         'epochs': params.epochs,
         'batch_size': params.batch_size,
         'seed': params.seed,
-        'gpus': params.gpus,
+        'gpu_ids': params.gpu_ids,
         'definition_time': definition_time,  
         'training_time': training_time,
         'testing_time': testing_time,  
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     params = parse_params()
 
     # Set GPUs to use
-    os.environ["CUDA_VISIBLE_DEVICES"] = params.gpus
+    os.environ["CUDA_VISIBLE_DEVICES"] = params.gpu_ids
     
     # backend is the library used follow by "-keras" if Keras is used
     segments = params.backend.split("-", 1)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus,
+            gpu_ids = params.gpu_ids,
             precision = params.precision
         )
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus,
+            gpu_ids = params.gpu_ids,
             precision = params.precision
         )
         
@@ -156,7 +156,7 @@ if __name__ == "__main__":
             epochs = params.epochs,
             batch_size=params.batch_size,
             seed = params.seed,
-            gpus = params.gpus,
+            gpu_ids = params.gpu_ids,
             precision = params.precision
         )
     else:
