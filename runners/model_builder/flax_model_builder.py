@@ -7,23 +7,29 @@ import flax.linen as nn
 import optax
 
 from runners.model_builder.model_builder import ModelBuilder
-from runners.model_builder.models.flax.CNNSimple import CNNSimple
-from runners.model_builder.models.flax.MLPSimple import MLPSimple
+from runners.model_builder.models.flax.cnn_simple import CNNSimple
+from runners.model_builder.models.flax.mlp_simple import MLPSimple
 from runners.model_builder.models.flax.LSTMSimple import LSTMSimple
+from utils.jax_utils import get_precision_dtypes
 
 
 class FlaxModelBuilder(ModelBuilder):
 
-    def __init__(self, model_type, model_complexity, key):
+    def __init__(self, model_type, model_complexity, key, policy):
         super().__init__(model_type, model_complexity)
 
         self.key = key
+
+        # dtype: data type in which the calculations are performed
+        # param_dtype: data type in which the parameters are stored
+        self.dtype = policy.compute_dtype
+        self.param_dtype = policy.param_dtype
     
 
     def _mlp_simple(self):
         lr = 1e-4
 
-        model = MLPSimple()
+        model = MLPSimple(self.dtype, self.param_dtype)
 
         # Initial state
         self.key, subkey = jax.random.split(self.key)
@@ -51,7 +57,7 @@ class FlaxModelBuilder(ModelBuilder):
     def _cnn_simple(self):
         lr = 1e-4
 
-        model = CNNSimple()
+        model = CNNSimple(self.dtype, self.param_dtype)
 
         # Initial state
         self.key, subkey = jax.random.split(self.key)

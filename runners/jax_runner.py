@@ -3,17 +3,18 @@ import time
 
 import jax
 import jax.numpy as jnp
+import jmp
 import keras
 
 from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
-from utils.gpu_metrics import get_gpu_metrics, record_sample
+from utils.gpu_metrics import record_sample
 from utils.jax_utils import (TrainState, classif_eval_step, classif_train_step,
                              regression_eval_step, regression_train_step)
 from utils.metrics_callback import MetricsCallback
-from utils.precision import get_keras_precision
+from utils.precision import Precision, get_keras_precision
 
 
 class JaxRunner(Runner):
@@ -35,8 +36,32 @@ class JaxRunner(Runner):
             jax.config.update("jax_default_device", jax.devices("gpu")[0])
 
         # Set global floating point precision
+        self.__set_precision()
+        
+    
+    def __set_precision(self):
         if (self.keras):
             keras.config.set_dtype_policy(get_keras_precision(self.precision))
+        else:
+            if self.precision == Precision.FP32:
+                self.policy = jmp.get_policy("float32")
+                self.loss_scale = None
+
+            elif self.precision == Precision.MIXED_PRECISION:
+                self.policy = jmp.Policy(
+                    compute_dtype=jnp.bfloat16,
+                    param_dtype=jnp.float32,
+                    output_dtype=jnp.float32
+                )
+                self.loss_scale = jmp.DynamicLossScale(jnp.float32(2 ** 15))
+                #self.loss_scale = jmp.DynamicLossScale(initial_loss_scale=2 ** 15)
+
+            elif self.precision == Precision.BF16:
+                self.policy = jmp.get_policy("bfloat16")
+                self.loss_scale = None
+
+            else:
+                raise ValueError("Unsupported precision: " + self.precision)
 
     
     def define_model(self):
@@ -45,14 +70,15 @@ class JaxRunner(Runner):
             self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
         else:
             self.key, subkey = jax.random.split(self.key)
-            self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey).build()
+            self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey, self.policy).build()
 
             # Set up the state using the model and cofiguration
             self.state = TrainState.create(
                 apply_fn=self.model.apply,
                 params=self.config["params"],
                 tx=self.config["optimizer"],
-                batch_stats=self.config.get("batch_stats", None)
+                batch_stats=self.config.get("batch_stats", None),
+                loss_scale=self.loss_scale
             )
 
 
@@ -129,8 +155,8 @@ class JaxRunner(Runner):
             # Save metrics
             history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
             history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
-            history["val_loss"].append(val_loss.item())
-            history[f"val_{metric_name}"].append(val_metric.item())
+            history["val_loss"].append(val_loss)
+            history[f"val_{metric_name}"].append(val_metric)
             history["epoch_time"].append(time.time() - epoch_start_time)
 
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
@@ -181,16 +207,16 @@ class JaxRunner(Runner):
         # Calculate mean
         test_loss /= num_batches
         test_metric /= num_batches
-    
-        # Print log message if it is test
-        if training_start_time is None:
-            print(f"Loss: {test_loss:.4f} - {self.config['metric_name']}: {test_metric:.4f}")
-
+        
         test_logs = {
-            "loss": test_loss,
-            self.config['metric_name']: test_metric,
+            "loss": test_loss.item(),
+            self.config['metric_name']: test_metric.item(),
             "epoch_time": time.time() - start_time
         }
+        
+        # Print log message if it is test
+        if training_start_time is None:
+            print(f"Loss: {test_loss.item():.4f} - {self.config['metric_name']}: {test_metric.item():.4f}")
 
         return test_logs, samples_logs
 

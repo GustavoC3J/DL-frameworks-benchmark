@@ -2,10 +2,14 @@ from typing import Any
 import jax
 import jax.numpy as jnp
 import optax
+import jmp
 from flax.training import train_state
+
+from utils.precision import Precision
 
 class TrainState(train_state.TrainState):
   batch_stats: Any
+  loss_scale: jmp.LossScale
 
 
 @jax.jit
@@ -32,16 +36,36 @@ def mae(preds, y):
 
 
 @jax.jit
-def classif_train_step(state, batch, key):
+def classif_train_step(state: TrainState, batch, key):
     # Train step used in MLP and CNN models
-    x, y = batch
 
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, x, rngs={'dropout': key}, deterministic=False)
-        return softmax_cross_entropy(logits, y), logits
+        loss = softmax_cross_entropy(logits, y)
+
+        # If it's mixed precision, scale loss
+        if state.loss_scale:
+            loss = state.loss_scale.scale(loss)
+
+        return loss, logits
+    
+    x, y = batch
 
     (loss, logits), grads = jax.value_and_grad(loss_fn, has_aux=True)(state.params)
-    state = state.apply_gradients(grads=grads)
+
+    if state.loss_scale:
+        # Mixed precision: Get original loss for metrics and unscale grads for updates
+        loss = state.loss_scale.unscale(loss)
+        grads = state.loss_scale.unscale(grads)
+
+        # Update scaler. If there is no NaN or Inf, apply the gradients
+        grads_finite = jmp.all_finite(grads)
+        new_loss_scale = state.loss_scale.adjust(grads_finite)
+        state = state.replace(loss_scale=new_loss_scale)
+        state = jmp.select_tree(grads_finite, state.apply_gradients(grads=grads), state)
+    else:
+        # No mixed precision: Update state using the gradients
+        state = state.apply_gradients(grads=grads)
 
     metric = accuracy(logits, y)
 
