@@ -6,7 +6,7 @@ import keras
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.metrics_callback import MetricsCallback
-from utils.precision import get_keras_precision
+from utils.precision import Precision, get_keras_precision
 
 
 class TFRunner(Runner):
@@ -22,7 +22,12 @@ class TFRunner(Runner):
         tf.random.set_seed(self.seed)
 
         # Set global floating point precision
-        keras.config.set_dtype_policy(get_keras_precision(self.precision))
+        if self.model_type == "lstm" and self.precision == Precision.BF16:
+            precision = "float16"
+        else:
+            precision = get_keras_precision(self.precision)
+
+        keras.config.set_dtype_policy(precision)
 
     
     def define_model(self):
