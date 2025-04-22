@@ -51,7 +51,7 @@ class LSTMSimple(nn.Module):
     key: Any
 
     @nn.compact
-    def __call__(self, x, deterministic=False):
+    def __call__(self, x, training):
 
         key1, key2 = jax.random.split(self.key)
         
@@ -65,20 +65,20 @@ class LSTMSimple(nn.Module):
         lstm = scanLSTM(self.cells)
         carry = lstm.initialize_carry(key1, input_shape)
         _, x = lstm(carry, x)
-        x = nn.BatchNorm(axis=-1, use_running_average=deterministic)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+        x = nn.BatchNorm(axis=-1, use_running_average=not training)(x)
+        x = nn.Dropout(self.dropout, deterministic=not training)(x)
         
         # Second LSTM layer
         lstm2 = scanLSTM(self.cells)
         carry = lstm2.initialize_carry(key2, input_shape)
         _, x = lstm2(carry, x)
         x = x[:, -1, :] # Keep only the last element of the window
-        x = nn.BatchNorm(axis=-1, use_running_average=deterministic)(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+        x = nn.BatchNorm(axis=-1, use_running_average=not training)(x)
+        x = nn.Dropout(self.dropout, deterministic=not training)(x)
 
         x = nn.Dense(16)(x)
         x = nn.tanh(x)
-        x = nn.Dropout(self.dropout, deterministic=deterministic)(x)
+        x = nn.Dropout(self.dropout, deterministic=not training)(x)
 
         # Output (trip count)
         x = nn.Dense(1)(x)

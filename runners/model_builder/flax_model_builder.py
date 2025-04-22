@@ -1,16 +1,12 @@
 
-
-from typing import Any
 import jax
 import jax.numpy as jnp
-import flax.linen as nn
 import optax
 
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.flax.cnn_simple import CNNSimple
+from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
-from runners.model_builder.models.flax.LSTMSimple import LSTMSimple
-from utils.jax_utils import get_precision_dtypes
 
 
 class FlaxModelBuilder(ModelBuilder):
@@ -34,7 +30,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 784))
-        params = model.init(subkey, dummy_input)['params']
+        params = model.init(subkey, dummy_input, training=False)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -62,7 +58,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 32, 32, 3))
-        params = model.init(subkey, dummy_input)['params']
+        params = model.init(subkey, dummy_input, training=False)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -96,7 +92,7 @@ class FlaxModelBuilder(ModelBuilder):
         
         # Initial state
         dummy_input = jnp.ones((1, window, 11))
-        variables = model.init(init_key, dummy_input)
+        variables = model.init(init_key, dummy_input, training=False)
 
         params = variables['params']
         batch_stats = variables['batch_stats']

@@ -40,7 +40,7 @@ def classif_train_step(state: TrainState, batch, key):
     # Train step used in MLP and CNN models
 
     def loss_fn(params):
-        logits = state.apply_fn({'params': params}, x, rngs={'dropout': key}, deterministic=False)
+        logits = state.apply_fn({'params': params}, x, rngs={'dropout': key}, training=True)
         loss = softmax_cross_entropy(logits, y)
 
         # If it's mixed precision, scale loss
@@ -77,7 +77,7 @@ def classif_eval_step(state, batch):
     # Test step used in MLP and CNN models
     x, y = batch
 
-    logits = state.apply_fn({'params': state.params}, x, deterministic=True)
+    logits = state.apply_fn({'params': state.params}, x, training=False)
 
     loss = softmax_cross_entropy(logits, y)
     metric = accuracy(logits, y)
@@ -96,7 +96,7 @@ def regression_train_step(state, batch, key):
             x,
             rngs={'dropout': key},
             mutable=['batch_stats'],
-            deterministic=False
+            training=True
         )
         
         loss = mse(logits, y)
@@ -121,7 +121,7 @@ def regression_eval_step(state, batch):
     logits = state.apply_fn(
         {'params': state.params, 'batch_stats': state.batch_stats},
         x,
-        deterministic=True
+        training=False
     )
 
     loss = mse(logits, y)
