@@ -11,8 +11,7 @@ from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
-from utils.jax_utils import (TrainState, classif_eval_step, classif_train_step,
-                             regression_eval_step, regression_train_step)
+from utils.jax_utils import TrainState, make_train_step, make_eval_step
 from utils.metrics_callback import MetricsCallback
 from utils.precision import Precision, get_keras_precision
 
@@ -115,7 +114,7 @@ class JaxRunner(Runner):
 
         num_batches = len(train_dl)
 
-        train_step_fn = regression_train_step if self.model_type == "lstm" else classif_train_step
+        train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
 
         # Training start time
         start_time = time.time()
@@ -132,7 +131,7 @@ class JaxRunner(Runner):
                 batch_y = jnp.array(batch_y)
 
                 self.key, subkey = jax.random.split(self.key)
-                self.state, loss, metric = train_step_fn(self.state, (batch_x, batch_y), subkey)
+                self.state, loss, metric = train_step(self.state, (batch_x, batch_y), subkey)
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
@@ -184,11 +183,12 @@ class JaxRunner(Runner):
         test_metric = 0
         num_batches = len(test_dl)
         samples_logs = []
-        eval_step_fn = regression_eval_step if self.model_type == "lstm" else classif_eval_step
+        
+        eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
         
         start_time = time.time()
         for i, (batch_x, batch_y) in enumerate(test_dl):
-            loss, metric = eval_step_fn( self.state, (jnp.array(batch_x), jnp.array(batch_y)) )
+            loss, metric = eval_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)))
 
             test_loss += loss
             test_metric += metric
