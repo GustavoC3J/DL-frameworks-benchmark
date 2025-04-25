@@ -69,7 +69,8 @@ class TorchRunner(Runner):
 
         
         # Move the model to the GPU and set it's precision
-        self.model.to(device=self.device, dtype=self.dtype)
+        if (not self.keras):
+            self.model.to(device=self.device, dtype=self.dtype)
 
         # If there are multiple GPUs, 
         #if len(self.gpus) > 1:

@@ -24,7 +24,7 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(use_running_average=not training)(x)
+        x = nn.BatchNorm()(x, use_running_average=not training)
         x = nn.relu(x)
 
         x = nn.Conv(
@@ -35,7 +35,7 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(use_running_average=not training)(x)
+        x = nn.BatchNorm()(x, use_running_average=not training)
 
         # Downsample si hace falta
         if self.stride > 1 or self.in_channels != self.out_channels:
@@ -71,7 +71,7 @@ class CNNComplex(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(use_running_average=not training)(x)
+        x = nn.BatchNorm()(x, use_running_average=not training)
         x = nn.relu(x)
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
@@ -84,7 +84,7 @@ class CNNComplex(nn.Module):
                 in_channels = out_channels
 
         # Flatten and perform final prediction
-        x = jnp.mean(x, axis=(2, 3))  # Global average pooling
+        x = jnp.mean(x, axis=(1, 2))  # Global average pooling
         x = nn.Dense(10, dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
 
         return x

@@ -1,14 +1,12 @@
-from typing import Any
+
 import jax
 import jax.numpy as jnp
 import optax
 import jmp
 from flax.training import train_state
 
-from utils.precision import Precision
-
 class TrainState(train_state.TrainState):
-  batch_stats: Any
+  batch_stats: any
   loss_scale: jmp.LossScale
 
 
@@ -111,7 +109,8 @@ def make_eval_step(loss_fn, metric_fn):
         logits = state.apply_fn(
             variables,
             x,
-            training=False
+            training=False,
+            mutable=False
         )
 
         loss = loss_fn(logits, y)
