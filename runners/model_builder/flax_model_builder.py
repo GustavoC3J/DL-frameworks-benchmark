@@ -6,6 +6,7 @@ import optax
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.flax.cnn_complex import CNNComplex
 from runners.model_builder.models.flax.cnn_simple import CNNSimple
+from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex
@@ -33,7 +34,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 784))
-        params = model.init(subkey, dummy_input, training=False)['params']
+        params = model.init(subkey, dummy_input, training=True)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -60,7 +61,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 784))
-        params = model.init(subkey, dummy_input, training=False)['params']
+        params = model.init(subkey, dummy_input, training=True)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -86,7 +87,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 32, 32, 3))
-        params = model.init(subkey, dummy_input, training=False)['params']
+        params = model.init(subkey, dummy_input, training=True)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -113,7 +114,7 @@ class FlaxModelBuilder(ModelBuilder):
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 32, 32, 3))
-        variables = model.init(subkey, dummy_input, training=False)
+        variables = model.init(subkey, dummy_input, training=True)
 
         params = variables['params']
         batch_stats = variables['batch_stats']
@@ -143,13 +144,13 @@ class FlaxModelBuilder(ModelBuilder):
         dropout = 0.1
         lr = 1e-4
 
-        self.key, model_key, init_key = jax.random.split(self.key, num=3)
+        self.key, init_key = jax.random.split(self.key, num=2)
 
-        model = LSTMSimple(cells, dropout, model_key)
+        model = LSTMSimple(cells, dropout, self.dtype, self.param_dtype)
         
         # Initial state
         dummy_input = jnp.ones((1, window, 11))
-        variables = model.init(init_key, dummy_input, training=False)
+        variables = model.init(init_key, dummy_input, training=True)
 
         params = variables['params']
         batch_stats = variables['batch_stats']
@@ -171,6 +172,39 @@ class FlaxModelBuilder(ModelBuilder):
         return model, config
 
     def _lstm_complex(self):
-        raise NotImplementedError()
+        interval = 10
+        window = 48 * 60 // interval
+        
+        lstm_layers = 8
+        initial_cells = 512
+        dropout = 0.4
+        lr = 1e-4
+
+        self.key, init_key = jax.random.split(self.key, num=2)
+
+        model = LSTMComplex(lstm_layers, initial_cells, dropout, self.dtype, self.param_dtype)
+        
+        # Initial state
+        dummy_input = jnp.ones((1, window, 11))
+        variables = model.init(init_key, dummy_input, training=True)
+
+        params = variables['params']
+        batch_stats = variables['batch_stats']
+
+        # Optimizer
+        optimizer = optax.adam(lr)
+        opt_state = optimizer.init(params)
+
+        config = {
+            "params": params,
+            "optimizer": optimizer,
+            "opt_state": opt_state,
+            "batch_stats": batch_stats,
+            "loss_fn": mse,
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
+
+        return model, config
 
 

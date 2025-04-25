@@ -3,6 +3,7 @@ from typing import Any
 
 import flax.linen as nn
 import jax
+import jax.numpy as jnp
 
 """
 class LSTMSimple(nn.Module):
@@ -48,40 +49,50 @@ class LSTMSimple(nn.Module):
 class LSTMSimple(nn.Module):
     cells: int
     dropout: str
-    key: Any
+    dtype: any
+    param_dtype: any
 
     @nn.compact
     def __call__(self, x, training):
 
-        key1, key2 = jax.random.split(self.key)
+        def zero_carry(batch_size, hidden_size):
+            # estado oculto (h), estado de celda (c)
+            return (
+                jnp.zeros((batch_size, hidden_size), dtype=x.dtype),
+                jnp.zeros((batch_size, hidden_size), dtype=x.dtype)
+            )
         
         scanLSTM = nn.scan(
-                nn.OptimizedLSTMCell, variable_broadcast="params",
-                split_rngs={"params": False}, in_axes=1, out_axes=1)
+            nn.OptimizedLSTMCell,
+            variable_broadcast="params",
+            split_rngs={"params": False},
+            in_axes=1,
+            out_axes=1
+        )
         
-        input_shape = x[:, 0].shape
+        batch_size = x.shape[0]
 
         # First LSTM layer
-        lstm = scanLSTM(self.cells)
-        carry = lstm.initialize_carry(key1, input_shape)
-        _, x = lstm(carry, x)
-        x = nn.BatchNorm(axis=-1, use_running_average=not training)(x)
-        x = nn.Dropout(self.dropout, deterministic=not training)(x)
+        lstm = scanLSTM(self.cells, dtype=self.dtype, param_dtype=self.param_dtype)
+        carry1 = zero_carry(batch_size, self.cells)
+        _, x = lstm(carry1, x)
+        x = nn.BatchNorm()(x, use_running_average=not training)
+        x = nn.Dropout(self.dropout)(x, deterministic=not training)
         
         # Second LSTM layer
-        lstm2 = scanLSTM(self.cells)
-        carry = lstm2.initialize_carry(key2, input_shape)
-        _, x = lstm2(carry, x)
+        lstm2 = scanLSTM(self.cells, dtype=self.dtype, param_dtype=self.param_dtype)
+        carry2 = zero_carry(batch_size, self.cells)
+        _, x = lstm2(carry2, x)
         x = x[:, -1, :] # Keep only the last element of the window
-        x = nn.BatchNorm(axis=-1, use_running_average=not training)(x)
-        x = nn.Dropout(self.dropout, deterministic=not training)(x)
+        x = nn.BatchNorm()(x, use_running_average=not training)
+        x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
-        x = nn.Dense(16)(x)
+        x = nn.Dense(16, dtype=self.dtype, param_dtype=self.param_dtype)(x)
         x = nn.tanh(x)
-        x = nn.Dropout(self.dropout, deterministic=not training)(x)
+        x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         # Output (trip count)
-        x = nn.Dense(1)(x)
+        x = nn.Dense(1, dtype=self.dtype, param_dtype=self.param_dtype)(x)
         
         return x
 
