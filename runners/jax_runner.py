@@ -45,26 +45,36 @@ class JaxRunner(Runner):
     def __set_precision(self):
         if (self.keras):
             keras.config.set_dtype_policy(get_keras_precision(self.precision))
+
         else:
+            self.loss_scale = None
+
             if self.precision == Precision.FP32:
                 self.policy = jmp.get_policy("float32")
-                self.loss_scale = None
-
-            elif self.precision == Precision.MIXED_PRECISION:
-                self.policy = jmp.Policy(
-                    compute_dtype=jnp.bfloat16,
-                    param_dtype=jnp.float32,
-                    output_dtype=jnp.float32
-                )
-                self.loss_scale = jmp.DynamicLossScale(jnp.float32(2 ** 15))
-                #self.loss_scale = jmp.DynamicLossScale(initial_loss_scale=2 ** 15)
+            
+            elif self.precision == Precision.FP16:
+                self.policy = jmp.get_policy("float16")
 
             elif self.precision == Precision.BF16:
                 self.policy = jmp.get_policy("bfloat16")
-                self.loss_scale = None
 
             else:
-                raise ValueError("Unsupported precision: " + self.precision)
+                self.loss_scale = jmp.DynamicLossScale(jnp.float32(2 ** 15))
+
+                if self.precision == Precision.MIXED_FP16:
+                    self.policy = jmp.Policy(
+                        compute_dtype=jnp.float16,
+                        param_dtype=jnp.float32,
+                        output_dtype=jnp.float32
+                    )
+                elif self.precision == Precision.MIXED_BF16:
+                    self.policy = jmp.Policy(
+                        compute_dtype=jnp.bfloat16,
+                        param_dtype=jnp.float32,
+                        output_dtype=jnp.float32
+                    )
+                else:
+                    raise ValueError("Unsupported precision: " + self.precision)
 
     
     def define_model(self):

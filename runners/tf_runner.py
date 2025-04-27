@@ -23,8 +23,8 @@ class TFRunner(Runner):
         tf.random.set_seed(self.seed)
 
         # Set global floating point precision
-        if self.model_type == "lstm" and self.precision == Precision.BF16:
-            precision = "float16"
+        if self.model_type == "lstm" and self.precision == Precision.BF16 or self.precision == Precision.MIXED_BF16:
+            raise ValueError(f"Unsupported precision: {self.precision}")
         else:
             precision = get_keras_precision(self.precision)
 

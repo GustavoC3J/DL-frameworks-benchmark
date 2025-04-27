@@ -43,23 +43,32 @@ class TorchRunner(Runner):
     def __set_precision(self):
         if (self.keras):
             keras.config.set_dtype_policy(get_keras_precision(self.precision))
+
         else:
+            self.amp = False # AMP = Automatic Mixed Precision
+
             if self.precision == Precision.FP32:
                 self.dtype = torch.float32
-                self.amp = False
 
-            elif self.precision == Precision.MIXED_PRECISION:
-                self.dtype = torch.float32
-                self.amp = True # AMP = Automatic Mixed Precision
-                self.amp_dtype = torch.bfloat16
-                self.scaler = torch.amp.GradScaler()
+            elif self.precision == Precision.FP16:
+                self.dtype = torch.float16
 
             elif self.precision == Precision.BF16:
                 self.dtype = torch.bfloat16
-                self.amp = False
 
             else:
-                raise ValueError("Unsupported precision: " + self.precision)
+                self.dtype = torch.float32
+                self.amp = True
+                self.scaler = torch.amp.GradScaler()
+
+                if self.precision == Precision.MIXED_FP16:
+                    self.amp_dtype = torch.float16
+
+                elif self.precision == Precision.MIXED_BF16:
+                    self.amp_dtype = torch.bfloat16
+                    
+                else:
+                    raise ValueError("Unsupported precision: " + self.precision)
 
     
     def define_model(self):
