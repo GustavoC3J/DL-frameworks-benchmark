@@ -1,9 +1,11 @@
 
+import copy
 import time
 
 import keras
 import numpy as np
 import torch
+from keras.api.callbacks import ModelCheckpoint
 
 from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
@@ -78,25 +80,40 @@ class TorchRunner(Runner):
 
 
 
-    def __keras_train(self, train_dl, val_dl):
-        callback = MetricsCallback(self.gpu_ids)
+    def __keras_train(self, train_dl, val_dl, path):
+
+        checkpoint_filepath = path + "/model.keras"
+        callbacks = [
+            MetricsCallback(self.gpu_ids),
+            ModelCheckpoint(
+                filepath=checkpoint_filepath,
+                monitor="val_loss",
+                mode="min",
+                save_best_only=True
+            )
+        ]
         
         # Train the model
         history = self.model.fit(
             train_dl,
             validation_data = val_dl,
             epochs = self.epochs,
-            callbacks=[callback]
+            callbacks=callbacks
         )
+
+        # Load best model
+        keras.models.load_model(checkpoint_filepath)
     
-        return history.history, callback.samples_logs
+        return history.history, callbacks[0].samples_logs
     
 
-    def __torch_train(self, train_dl, val_dl):
+    def __torch_train(self, train_dl, val_dl, path):
         
         num_batches = len(train_dl)
-        
         metric_name = self.config["metric_name"]
+        samples_logs = []
+        best_model_weights = None
+        best_val_loss = float('inf')
 
         history = {
             "loss": [],
@@ -105,8 +122,6 @@ class TorchRunner(Runner):
             f"val_{metric_name}": [],
             "epoch_time": []
         }
-
-        samples_logs = []
 
         # Training start time
         start_time = time.time()
@@ -156,6 +171,7 @@ class TorchRunner(Runner):
 
                     loss.backward()
                     self.config["optimizer"].step()
+
                 
                 train_losses.append(loss.item())
                 train_metrics.append(metric)
@@ -176,6 +192,11 @@ class TorchRunner(Runner):
             val_metric = val_logs[metric_name]
             samples_logs.extend(val_samples_logs)
 
+            # Save best model
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_model_weights = copy.deepcopy(self.model.state_dict())
+
 
             # Save metrics
             history["loss"].append(np.mean(np.array(train_losses)))
@@ -186,16 +207,20 @@ class TorchRunner(Runner):
 
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
 
+        # Save and load the best model
+        torch.save(best_model_weights, path + f'/{epoch:02d}_model.pt')
+        self.model.load_state_dict(best_model_weights)
+
         return history, samples_logs
 
 
-    def train(self, trainX, validX, trainY, validY):
+    def train(self, trainX, validX, trainY, validY, path):
         train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
         val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
 
         train_fn = self.__keras_train if self.keras else self.__torch_train
 
-        return train_fn(train_dl, val_dl)
+        return train_fn(train_dl, val_dl, path)
 
 
     def __keras_evaluate(self, test_dl):

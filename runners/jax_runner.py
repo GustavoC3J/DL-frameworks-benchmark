@@ -1,17 +1,21 @@
 
 import time
+from pathlib import Path
 
 import jax
 import jax.numpy as jnp
 import jmp
 import keras
+import orbax.checkpoint
+from flax.training import checkpoints
+from keras.api.callbacks import ModelCheckpoint
 
 from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
-from utils.jax_utils import TrainState, make_train_step, make_eval_step
+from utils.jax_utils import TrainState, make_eval_step, make_train_step
 from utils.metrics_callback import MetricsCallback
 from utils.precision import Precision, get_keras_precision
 
@@ -82,25 +86,39 @@ class JaxRunner(Runner):
 
 
 
-    def __keras_train(self, train_dl, val_dl):
+    def __keras_train(self, train_dl, val_dl, path):
         # Training using Keras
 
-        callback = MetricsCallback(self.gpu_ids)
+        checkpoint_filepath = path + "/model.keras"
+        callbacks = [
+            MetricsCallback(self.gpu_ids),
+            ModelCheckpoint(
+                filepath=checkpoint_filepath,
+                monitor="val_loss",
+                mode="min",
+                save_best_only=True
+            )
+        ]
         
         history = self.model.fit(
             train_dl,
             validation_data = val_dl,
             epochs = self.epochs,
-            callbacks=[callback]
+            callbacks=callbacks
         )
+
+        # Load best model
+        keras.models.load_model(checkpoint_filepath)
     
-        return history.history, callback.samples_logs
+        return history.history, callbacks[0].samples_logs
 
 
-    def __jax_train(self, train_dl, val_dl):
+    def __jax_train(self, train_dl, val_dl, path):
         # Training loop using JAX
         
         metric_name = self.config["metric_name"]
+        best_model_weights = None
+        best_val_loss = float('inf')
 
         history = {
             "loss": [],
@@ -151,6 +169,11 @@ class JaxRunner(Runner):
             val_metric = val_logs[metric_name]
             samples_logs.extend(val_samples_logs)
 
+            # Save best model
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_model_weights = self.state.replace()
+
             # Save metrics
             history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
             history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
@@ -159,14 +182,24 @@ class JaxRunner(Runner):
             history["epoch_time"].append(time.time() - epoch_start_time)
 
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
+
+        # Save and load the best model
+        self.state = self.state.replace(loss_scale=None) # Not needed anymore, and it's incompatible with checkpointing
+        checkpoints.save_checkpoint(
+            Path(path).absolute(),
+            self.state,
+            0,
+            orbax_checkpointer=orbax.checkpoint.PyTreeCheckpointer()
+        )
+        self.state = best_model_weights
         
         return history, samples_logs
     
-    def train(self, trainX, validX, trainY, validY):
+    def train(self, trainX, validX, trainY, validY, path):
         train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
         val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
 
-        return self.__keras_train(train_dl, val_dl) if self.keras else self.__jax_train(train_dl, val_dl)
+        return self.__keras_train(train_dl, val_dl, path) if self.keras else self.__jax_train(train_dl, val_dl, path)
 
 
     def __keras_evaluate(self, test_dl):

@@ -1,8 +1,9 @@
 
-from datasets.data_loader_factory import DataLoaderFactory
-import tensorflow as tf
 import keras
+import tensorflow as tf
+from keras.api.callbacks import ModelCheckpoint
 
+from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.metrics_callback import MetricsCallback
@@ -43,21 +44,33 @@ class TFRunner(Runner):
 
 
 
-    def train(self, trainX, validX, trainY, validY):
+    def train(self, trainX, validX, trainY, validY, path):
         train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
         val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
 
-        callback = MetricsCallback(self.gpu_ids)
+        checkpoint_filepath = path + "/model.keras"
+        callbacks = [
+            MetricsCallback(self.gpu_ids),
+            ModelCheckpoint(
+                filepath=checkpoint_filepath,
+                monitor="val_loss",
+                mode="min",
+                save_best_only=True
+            )
+        ]
         
         # Train the model
         history = self.model.fit(
             train_dl,
             validation_data = val_dl,
             epochs = self.epochs,
-            callbacks=[callback]
+            callbacks=callbacks
         )
+
+        # Load best model
+        keras.models.load_model(checkpoint_filepath)
     
-        return history.history, callback.samples_logs
+        return history.history, callbacks[0].samples_logs
 
 
     def evaluate(self, testX, testY):

@@ -60,7 +60,7 @@ def run_experiment(runner, params):
 
     # Start training
     start = time.time()
-    train_results, train_samples = runner.train(*formatted_data)
+    train_results, train_samples = runner.train(*formatted_data, output_directory)
     training_time = time.time() - start
 
     # Start testing
