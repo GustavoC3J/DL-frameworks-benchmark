@@ -1,4 +1,5 @@
 
+import os
 import time
 from pathlib import Path
 
@@ -118,7 +119,8 @@ class JaxRunner(Runner):
         )
 
         # Load best model
-        keras.models.load_model(checkpoint_filepath)
+        if os.path.exists(checkpoint_filepath):
+            self.model = keras.models.load_model(checkpoint_filepath)
     
         return history.history, callbacks[0].samples_logs
 
@@ -194,14 +196,15 @@ class JaxRunner(Runner):
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
 
         # Save and load the best model
-        self.state = self.state.replace(loss_scale=None) # Not needed anymore, and it's incompatible with checkpointing
+        if (best_model_weights != None):
+            self.state = best_model_weights
+
         checkpoints.save_checkpoint(
             Path(path).absolute(),
-            self.state,
+            self.state.replace(loss_scale=None), # Not needed anymore, and it's incompatible with checkpointing,
             0,
             orbax_checkpointer=orbax.checkpoint.PyTreeCheckpointer()
         )
-        self.state = best_model_weights
         
         return history, samples_logs
     

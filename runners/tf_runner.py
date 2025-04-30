@@ -1,4 +1,5 @@
 
+import os
 import keras
 import tensorflow as tf
 from keras.api.callbacks import ModelCheckpoint
@@ -7,7 +8,7 @@ from datasets.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.metrics_callback import MetricsCallback
-from utils.precision import Precision, get_keras_precision
+from utils.precision import get_keras_precision
 
 
 class TFRunner(Runner):
@@ -23,11 +24,7 @@ class TFRunner(Runner):
         tf.random.set_seed(self.seed)
 
         # Set global floating point precision
-        if self.model_type == "lstm" and self.precision == Precision.BF16 or self.precision == Precision.MIXED_BF16:
-            raise ValueError(f"Unsupported precision: {self.precision}")
-        else:
-            precision = get_keras_precision(self.precision)
-
+        precision = get_keras_precision(self.precision)
         keras.config.set_dtype_policy(precision)
 
     
@@ -68,7 +65,8 @@ class TFRunner(Runner):
         )
 
         # Load best model
-        keras.models.load_model(checkpoint_filepath)
+        if os.path.exists(checkpoint_filepath):
+            self.model = keras.models.load_model(checkpoint_filepath)
     
         return history.history, callbacks[0].samples_logs
 

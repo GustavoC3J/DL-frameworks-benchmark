@@ -1,5 +1,6 @@
 
 import copy
+import os
 import time
 
 import keras
@@ -111,7 +112,8 @@ class TorchRunner(Runner):
         )
 
         # Load best model
-        keras.models.load_model(checkpoint_filepath)
+        if os.path.exists(checkpoint_filepath):
+            self.model = keras.models.load_model(checkpoint_filepath)
     
         return history.history, callbacks[0].samples_logs
     
@@ -217,9 +219,11 @@ class TorchRunner(Runner):
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
 
         # Save and load the best model
-        torch.save(best_model_weights, path + f'/{epoch:02d}_model.pt')
-        self.model.load_state_dict(best_model_weights)
+        if (best_model_weights != None):
+            self.model.load_state_dict(best_model_weights)
 
+        torch.save(self.model.state_dict(), path + f'/{epoch:02d}_model.pt')
+        
         return history, samples_logs
 
 

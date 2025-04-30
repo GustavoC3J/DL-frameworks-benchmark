@@ -4,6 +4,7 @@ import argparse
 import os
 import time
 from datetime import datetime
+import traceback
 
 import pandas as pd
 
@@ -29,14 +30,7 @@ def parse_params():
 
     return parser.parse_args()
 
-def run_experiment(runner, params):
-
-    # Create output directory
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
-    os.makedirs(output_directory, exist_ok=True)
-
-
+def run_experiment(runner, params, output_directory):
 
     # Path to the results files
     global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
@@ -164,4 +158,25 @@ if __name__ == "__main__":
         print("Error: Unknown library")
 
     if runner:
-        run_experiment(runner, params)
+        # Create output directory
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
+        os.makedirs(output_directory, exist_ok=True)
+
+        try:
+            run_experiment(runner, params, output_directory)
+        except Exception as e:
+            # Clean traceback routes and save to file
+            tb_lines = traceback.format_exc().splitlines()
+            cleaned_lines = []
+            
+            for line in tb_lines:
+                if line.strip().startswith('File'):
+                    parts = line.split('"')
+                    if len(parts) >= 3:
+                        filename = os.path.basename(parts[1])
+                        line = line.replace(parts[1], filename)
+                cleaned_lines.append(line)
+                
+            with open(output_directory + "/error.txt", "a") as f:
+                f.write("\n".join(cleaned_lines))
