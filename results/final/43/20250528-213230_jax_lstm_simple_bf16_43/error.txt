@@ -1,0 +1,63 @@
+Traceback (most recent call last):
+  File "experiment.py", line 167, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 48, in run_experiment
+    runner.define_model()
+  File "jax_runner.py", line 87, in define_model
+    self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey, self.policy).build()
+  File "model_builder.py", line 22, in build
+    return self._lstm_simple() if self.model_complexity == "simple" else self._lstm_complex()
+  File "flax_model_builder.py", line 153, in _lstm_simple
+    variables = model.init(init_key, dummy_input, training=True)
+  File "lstm_simple.py", line 78, in __call__
+    _, x = lstm(carry1, x)
+  File "axes_scan.py", line 151, in scan_fn
+    _, out_pvals, _ = pe.trace_to_jaxpr_nounits(f_flat, in_pvals)
+  File "axes_scan.py", line 123, in body_fn
+    broadcast_out, c, ys = fn(broadcast_in, c, *xs)
+  File "recurrent.py", line 350, in __call__
+    dense_params_h[component] = DenseParams(
+  File "recurrent.py", line 217, in __call__
+    k = self.param(
+  File "initializers.py", line 611, in init
+    Q, R = jnp.linalg.qr(A)
+  File "linalg.py", line 1291, in qr
+    q, r = lax_linalg.qr(a, full_matrices=full_matrices)
+jax._src.source_info_util.JaxStackTraceBeforeTransformation: ValueError: Unsupported dtype dtype(bfloat16)
+
+The preceding stack trace is the source of the JAX operation that, once transformed by JAX, triggered the following exception.
+
+--------------------
+
+The above exception was the direct cause of the following exception:
+
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "experiment.py", line 167, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 48, in run_experiment
+    runner.define_model()
+  File "jax_runner.py", line 87, in define_model
+    self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey, self.policy).build()
+  File "model_builder.py", line 22, in build
+    return self._lstm_simple() if self.model_complexity == "simple" else self._lstm_complex()
+  File "flax_model_builder.py", line 153, in _lstm_simple
+    variables = model.init(init_key, dummy_input, training=True)
+  File "lstm_simple.py", line 78, in __call__
+    _, x = lstm(carry1, x)
+  File "axes_scan.py", line 151, in scan_fn
+    _, out_pvals, _ = pe.trace_to_jaxpr_nounits(f_flat, in_pvals)
+  File "axes_scan.py", line 123, in body_fn
+    broadcast_out, c, ys = fn(broadcast_in, c, *xs)
+  File "recurrent.py", line 350, in __call__
+    dense_params_h[component] = DenseParams(
+  File "recurrent.py", line 217, in __call__
+    k = self.param(
+  File "initializers.py", line 611, in init
+    Q, R = jnp.linalg.qr(A)
+  File "gpu_solver.py", line 143, in _geqrf_hlo
+    lwork, opaque = gpu_solver.build_geqrf_descriptor(
+ValueError: Unsupported dtype dtype(bfloat16)
