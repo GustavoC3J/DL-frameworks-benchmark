@@ -7,6 +7,7 @@ from keras.models import Model, Sequential
 from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
+from runners.model_builder.models.keras.mlp_complex import MLPComplex
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -43,33 +44,16 @@ class KerasModelBuilder(ModelBuilder):
     
 
     def _mlp_complex(self):
-        activation = "relu"
-        dropout = 0.4
-        lr = 1e-4
+        lr = 3e-5
 
-        hidden_layers = 15
-        final_units = 64  # Last hidden layers will have these units
-        layers_per_group = 3
-
-        # Calculate initial units based on number of hidden layers
-        groups = (hidden_layers + layers_per_group - 1) // layers_per_group
-        units = final_units * (2 ** (groups - 1)) # Starting units
-
-        
-        model = Sequential()
-        model.add(Input(shape=(784,))) # Input layer
-
-        # Add the hidden layers
-        for i in range(1, hidden_layers + 1):
-            model.add(Dense(units, activation=activation))
-            model.add(Dropout(dropout))
-
-            # Halve the number of units for the next group
-            if i % layers_per_group == 0:
-                units //= 2
-                
-        # Output layer
-        model.add(Dense(10, activation='softmax'))
+        model = MLPComplex(
+            groups=5,
+            layers_per_group=2,
+            dropout=0.2,
+            initial_units=800,
+            final_units=160,
+            kernel_initializer="he_uniform"
+        )
 
         # Compile the model
         model.compile(

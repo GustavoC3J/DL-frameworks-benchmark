@@ -33,11 +33,16 @@ class TorchModelBuilder(ModelBuilder):
     
 
     def _mlp_complex(self):
-        activation = nn.ReLU()
-        dropout = 0.4
-        lr = 1e-4
+        lr = 3e-5
 
-        model = MLPComplex(activation, dropout)
+        model = MLPComplex(
+            groups=5,
+            layers_per_group=2,
+            dropout=0.2,
+            initial_units=800,
+            final_units=160,
+            kernel_initializer="he_uniform"
+        )
         
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),

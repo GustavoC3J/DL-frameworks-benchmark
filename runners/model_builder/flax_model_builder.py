@@ -53,15 +53,22 @@ class FlaxModelBuilder(ModelBuilder):
     
 
     def _mlp_complex(self):
-        dropout = 0.4
-        lr = 1e-4
+        lr = 3e-5
 
-        model = MLPComplex(self.dtype, self.param_dtype, dropout)
+        model = MLPComplex(
+            groups=5,
+            layers_per_group=2,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            dropout=0.2,
+            initial_units=800,
+            final_units=160
+        )
 
         # Initial state
         self.key, subkey = jax.random.split(self.key)
         dummy_input = jnp.ones((1, 784))
-        params = model.init(subkey, dummy_input, training=True)['params']
+        params = model.init(subkey, dummy_input, training=False)['params']
 
         # Optimizer
         optimizer = optax.adam(lr)

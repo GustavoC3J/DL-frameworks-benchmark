@@ -125,6 +125,7 @@ class TorchRunner(Runner):
         samples_logs = []
         best_model_weights = None
         best_val_loss = float('inf')
+        best_epoch = 0
 
         history = {
             "loss": [],
@@ -207,6 +208,7 @@ class TorchRunner(Runner):
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_model_weights = copy.deepcopy(self.model.state_dict())
+                best_epoch = epoch
 
 
             # Save metrics
@@ -222,7 +224,7 @@ class TorchRunner(Runner):
         if (best_model_weights != None):
             self.model.load_state_dict(best_model_weights)
 
-        torch.save(self.model.state_dict(), path + f'/{epoch:02d}_model.pt')
+        torch.save(self.model.state_dict(), path + f'/{best_epoch:02d}_model.pt')
         
         return history, samples_logs
 

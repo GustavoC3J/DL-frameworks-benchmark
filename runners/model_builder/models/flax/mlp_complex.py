@@ -1,34 +1,46 @@
 
-import flax.linen as nn
+from flax import linen as nn
+import numpy as np
+from typing import Callable
 
 
 class MLPComplex(nn.Module):
+    groups: int
+    dropout: float
     dtype: any
     param_dtype: any
+    initial_units: int = 800
+    final_units: int = 160
+    layers_per_group: int = 2
+    activation: Callable = nn.relu
+    kernel_initializer: Callable = nn.initializers.he_uniform
 
-    dropout: float
-    
     @nn.compact
     def __call__(self, x, training):
-        hidden_layers = 15
-        final_units = 64  # Last hidden layers will have these units
-        layers_per_group = 3
 
-        # Calculate initial units based on number of hidden layers
-        groups = (hidden_layers + layers_per_group - 1) // layers_per_group
-        units = final_units * (2 ** (groups - 1))  # Starting units
+        # Define the number of units for each group
+        units_per_group = np.linspace(self.initial_units, self.final_units, self.groups).astype(int)
 
         # Add the hidden layers
-        for i in range(1, hidden_layers + 1):
-            x = nn.Dense(units, dtype=self.dtype, param_dtype=self.param_dtype)(x)
-            x = nn.relu(x)
-            x = nn.Dropout(self.dropout, deterministic=not training)(x)
-
-            # Halve the number of units for the next group
-            if i % layers_per_group == 0:
-                units //= 2
+        for units in units_per_group:
+            for _ in range(self.layers_per_group):
+                x = nn.Dense(
+                    features=units,
+                    kernel_init=self.kernel_initializer(dtype=self.dtype),
+                    bias_init=nn.initializers.zeros,
+                    dtype=self.dtype,
+                    param_dtype=self.param_dtype
+                )(x)
+                x = self.activation(x)
+                x = nn.Dropout(rate=self.dropout)(x, deterministic=not training)
 
         # Output layer
-        x = nn.Dense(10, dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
+        x = nn.Dense(
+            features=10,
+            kernel_init=self.kernel_initializer(dtype=self.dtype),
+            bias_init=nn.initializers.zeros,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype
+        )(x) # softmax is applied in loss function
 
         return x
