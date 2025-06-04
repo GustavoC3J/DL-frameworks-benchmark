@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
+torch,mlp,complex,fp32,100,64,43,2,0.2769947052001953,389.35636258125305,0.6595454216003418,81920.0
