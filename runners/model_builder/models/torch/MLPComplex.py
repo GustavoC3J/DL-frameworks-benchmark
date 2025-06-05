@@ -48,7 +48,7 @@ class MLPComplex(nn.Module):
             elif kernel_initializer == "he_normal":
                 nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
             else:
-                raise ValueError(f"Inicializador no soportado: {kernel_initializer}")
+                raise ValueError(f"Initializer not supported: {kernel_initializer}")
             nn.init.zeros_(layer.bias)
 
     def forward(self, x):
