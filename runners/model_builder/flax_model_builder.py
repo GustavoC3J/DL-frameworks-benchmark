@@ -113,10 +113,13 @@ class FlaxModelBuilder(ModelBuilder):
     
 
     def _cnn_complex(self):
-        n = 10 # number of blocks, 6n + 1 layers
-        lr = 1e-4
+        lr = 1e-3
 
-        model = CNNComplex(n, self.dtype, self.param_dtype)
+        model = CNNComplex(
+            5, # number of blocks, 6n + 2 layers
+            self.dtype,
+            self.param_dtype
+        )
 
         # Initial state
         self.key, subkey = jax.random.split(self.key)

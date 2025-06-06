@@ -3,6 +3,8 @@
 import torch.nn as nn
 import numpy as np
 
+from utils.torch_utils import init_layer_weights
+
 class MLPComplex(nn.Module):
     def __init__(self, groups, dropout, initial_units = 800, final_units = 160, layers_per_group = 2, activation = nn.ReLU(), input_dim = 784, kernel_initializer = "he_uniform"):
         """
@@ -25,7 +27,7 @@ class MLPComplex(nn.Module):
         for units in units_per_group:
             for _ in range(layers_per_group):
                 linear = nn.Linear(input_size, units)
-                self._init_weights(linear, kernel_initializer)
+                init_layer_weights(linear, kernel_initializer)
                 layers.append(linear)
                 layers.append(activation)
                 layers.append(nn.Dropout(dropout))
@@ -37,19 +39,6 @@ class MLPComplex(nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-    def _init_weights(self, layer, kernel_initializer):
-        if isinstance(layer, nn.Linear):
-            if kernel_initializer == "glorot_uniform":
-                nn.init.xavier_uniform_(layer.weight)
-            elif kernel_initializer == "glorot_normal":
-                nn.init.xavier_normal_(layer.weight)
-            elif kernel_initializer == "he_uniform":
-                nn.init.kaiming_uniform_(layer.weight, nonlinearity='relu')
-            elif kernel_initializer == "he_normal":
-                nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
-            else:
-                raise ValueError(f"Initializer not supported: {kernel_initializer}")
-            nn.init.zeros_(layer.bias)
 
     def forward(self, x):
         return self.model(x)

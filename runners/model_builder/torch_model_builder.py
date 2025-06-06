@@ -74,10 +74,13 @@ class TorchModelBuilder(ModelBuilder):
 
 
     def _cnn_complex(self):
-        n = 10 # number of blocks, 6n + 1 layers
-        lr = 1e-4
+        lr = 1e-3
 
-        model = CNNComplex(n_blocks=n)
+        model = CNNComplex(
+            n_blocks=5, # number of blocks, 6n + 2 layers
+            starting_channels=64,
+            kernel_initializer="he_uniform"
+        )
         
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),

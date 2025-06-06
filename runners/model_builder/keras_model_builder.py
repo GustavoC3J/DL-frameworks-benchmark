@@ -1,13 +1,14 @@
 
 
 from keras.layers import (LSTM, BatchNormalization, Conv2D,
-                          Dense, Dropout, Flatten, GlobalAveragePooling2D,
-                          Input, MaxPooling2D, ReLU, Activation, add)
-from keras.models import Model, Sequential
+                          Dense, Dropout, Flatten,
+                          Input, MaxPooling2D, Activation)
+from keras.models import Sequential
 from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.keras.mlp_complex import MLPComplex
+from runners.model_builder.models.keras.cnn_complex import CNNComplex
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -103,49 +104,14 @@ class KerasModelBuilder(ModelBuilder):
     
 
     def _cnn_complex(self):
-        n = 10 # number of blocks, 6n + 1 layers
-        lr = 1e-4
-
-        # Build a Resnet block
-        def block(x, filtros, kernel_size = 3, stride = 1):
-            residual = x
-
-            x = Conv2D(filters = filtros, kernel_size = kernel_size, padding = 'same', strides = stride)(x)
-            x = BatchNormalization()(x)
-            x = ReLU()(x)
-
-            x = Conv2D(filters = filtros, kernel_size = kernel_size, padding = 'same')(x)
-            x = BatchNormalization()(x)
-
-            if stride > 1:
-                residual = Conv2D(filters = filtros, kernel_size = 1, padding = 'same', strides = stride)(residual)
-            
-            x = add([x, residual])
-            x = ReLU()(x)
-
-            return x
-        
-        # Initial layer
-        input = Input(shape = (32, 32, 3))
-        x = Conv2D(filters = 16, kernel_size = 3, padding = 'same')(input)
-        x = BatchNormalization()(x)
-        x = ReLU()(x)
-
-        # Each stage is composed of n blocks whose convolutions use the corresponding filters
-        for stage, filters in enumerate([16, 32, 64]):
-            for i in range(n):
-                # If it is the first block of the stage, a subsampling is made
-                stride = 2 if stage > 0 and i == 0 else 1
-                
-                x = block(x, filters, stride = stride)
-
-        # Flatten and perform final prediction
-        x = GlobalAveragePooling2D()(x)
-        x = Dense(10, activation = "softmax")(x)
-        
+        lr = 1e-3
 
         # Build the model
-        model = Model(inputs = input, outputs = x)
+        model = CNNComplex(
+            n_blocks=5, # number of blocks, 6n + 2 layers
+            starting_channels=64,
+            kernel_initializer="he_uniform"
+        )
         
         # Compile the model
         model.compile(
