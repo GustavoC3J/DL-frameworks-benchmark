@@ -29,8 +29,10 @@ class VariableSelectionNetwork(layers.Layer):
         ]
         
         self.softmax = layers.Softmax()
-        self.flatten = layers.Reshape( (input_shape[1], num_inputs * embedding_dim) if self.time_distributed else \
-                                       (num_inputs * embedding_dim) )
+        self.flatten = layers.Reshape( 
+            (input_shape[1], num_inputs * embedding_dim) if self.time_distributed else \
+            (num_inputs * embedding_dim,)
+        )
 
         self.selection_grn = GatedResidualNetwork(
             self.hidden_units,

@@ -33,7 +33,7 @@ class GatedResidualNetwork(layers.Layer):
         self.dense2 = Dense_wrapper(layers.Dense(self.hidden_units))
 
         # Gating layer
-        self.glu = GLU(self.hidden_units, self.dropout_rate, self.time_distributed)
+        self.glu = GLU(self.output_size, self.dropout_rate, self.time_distributed)
 
         # Normalization
         self.layer_norm = layers.LayerNormalization()
