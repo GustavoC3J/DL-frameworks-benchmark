@@ -113,6 +113,7 @@ class TFT(keras.Model):
 
         self.output_layer = layers.TimeDistributed(layers.Dense(output_size))
 
+
     def call(self, inputs, training=None):
         """
         inputs: dict with keys:
@@ -142,18 +143,18 @@ class TFT(keras.Model):
         )
 
         # Use the last state of the encoder as the initial state for the encoder
-        decoder_output, _, _ = self.decoder_lstm(
+        decoder_output = self.decoder_lstm(
             future_features,
             initial_state=[state_h, state_c]
         )
 
-        lstm_layer = ops.concat([encoder_output, decoder_output], axis=1)
+        lstm_layer = ops.concatenate([encoder_output, decoder_output], axis=1)
 
         # Apply gated skip connection
-        input_embeddings = ops.concat([historic_features, future_features], axis=1)
+        input_embeddings = ops.concatenate([historic_features, future_features], axis=1)
 
         lstm_layer, _ = self.glu_lstm(lstm_layer)
-        temporal_feature_layer = ops.add([lstm_layer, input_embeddings])
+        temporal_feature_layer = ops.add(lstm_layer, input_embeddings)
         temporal_feature_layer = self.layer_norm_lstm(temporal_feature_layer)
 
         # 4. Static enrichment layers
@@ -167,15 +168,16 @@ class TFT(keras.Model):
         attn_output = self.self_attention(enriched, enriched, enriched)
 
         x = self.glu_multihead(attn_output)
-        x = ops.add([x, enriched])
+        x = ops.add(x, enriched)
         x = self.layer_norm_lstm(x)
 
         decoder = self.grn_multihead(x)
 
         # 6. Final skip connection and output layer
         decoder = self.glu_output(decoder)
-        x = ops.add([decoder, temporal_feature_layer])
+        x = ops.add(decoder, temporal_feature_layer)
         transformer_layer = self.layer_norm_output(x)
 
         output = self.output_layer(transformer_layer)
+
         return output

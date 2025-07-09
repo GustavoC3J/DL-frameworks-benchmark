@@ -41,6 +41,8 @@ class VariableSelectionNetwork(layers.Layer):
             time_distributed=self.time_distributed
         )
 
+        super().build(input_shape)
+
     def call(self, inputs, context=None, training=None):
         # inputs: (batch_size, num_inputs, embedding_dim) or (batch_size, window, num_inputs, embedding_dim)
 

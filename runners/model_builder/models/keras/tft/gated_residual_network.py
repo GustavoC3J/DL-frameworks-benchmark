@@ -41,6 +41,8 @@ class GatedResidualNetwork(layers.Layer):
         # Dropout
         self.dropout = layers.Dropout(self.dropout_rate) if self.dropout_rate else lambda x: x
 
+        super().build(input_shape)
+
 
     def call(self, inputs, context=None, training=None):
 
@@ -50,7 +52,7 @@ class GatedResidualNetwork(layers.Layer):
         # First linear and add context (if available)
         x = self.dense1(inputs)
 
-        if context:
+        if context is not None:
             # If it's time series, add temporal dimension to context
             expanded_context = ops.expand_dims(context, axis=1) if self.time_distributed else context
             context_transformed = self.context_dense(expanded_context)

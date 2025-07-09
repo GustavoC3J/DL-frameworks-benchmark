@@ -33,6 +33,7 @@ class StaticCovariateEncoder(layers.Layer):
             time_distributed=False
         )
 
+
     def call(self, inputs, training=None):
         """
         inputs: Tensor of shape (batch_size, hidden_size)

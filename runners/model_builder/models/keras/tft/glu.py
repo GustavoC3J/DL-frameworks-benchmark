@@ -19,6 +19,8 @@ class GLU(layers.Layer):
         self.activation_layer = Dense_wrapper(layers.Dense(self.hidden_units, activation=self.activation))
         self.gated_layer = Dense_wrapper(layers.Dense(self.hidden_units, activation="sigmoid"))
 
+        super().build(input_shape)
+
     
     def call(self, inputs, training=None):
         x = self.dropout(inputs) if self.dropout else inputs
