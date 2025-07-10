@@ -145,49 +145,45 @@ class TFT(keras.Model):
     def build(self, input_shape):
         super().build(input_shape)
 
-    def call(self, inputs, training=None):
+    def call(self, inputs: tuple, training=None):
         """
-        inputs: dict with keys:
+        inputs: tuple of tensors:
             - 'static': (batch, num_static_vars, emb_dim)
             - 'historic': (batch, time_steps, num_historic_vars, emb_dim)
             - 'future': (batch, time_steps, num_future_vars, emb_dim)
         """
-        static_emb = inputs.get('static', None)
-        historic_emb = inputs.get('historic', None)
-        future_emb = inputs.get('future', None)
+        static_input, historic_input, future_input = inputs
 
-        if historic_emb is None:
+        if historic_input is None:
             raise ValueError('Input "historic" is required.')
         
-        if self.num_static_inputs is not None and static_emb is None:
+        if self.num_static_inputs is not None and static_input is None:
             raise ValueError('Input "static" is required when "num_static_inputs" is not None.')
         
-        if self.num_future_inputs is not None and future_emb is None:
+        if self.num_future_inputs is not None and future_input is None:
             raise ValueError('Input "future" is required when "num_future_inputs" is not None.')
         
 
         # 1. Static covariate encoding
-        if self.num_static_inputs is not None and static_emb is not None:
-            static_selected = self.static_vsn(static_emb)
+        if self.num_static_inputs is not None and static_input is not None:
+            static_selected = self.static_vsn(static_input)
             static_context = self.static_encoder(static_selected)
 
-            context_var_sel = static_context["context_variable_selection"]
-            context_enrichment = static_context["context_enrichment"]
-            context_state_h, context_state_c = static_context["context_state"]
+            context_var_sel, context_enrichment, (context_state_h, context_state_c) = static_context
         else:
             # If there are no static inputs, use zeros for context
             context_var_sel = None
-            context_enrichment = context_state_h = context_state_c = ops.zeros((ops.shape(historic_emb)[0], self.hidden_units))
+            context_enrichment = context_state_h = context_state_c = ops.zeros((ops.shape(historic_input)[0], self.hidden_units))
 
 
         # 2. Variable selection
-        historic_features = self.historic_vsn(historic_emb, context=context_var_sel)
+        historic_features = self.historic_vsn(historic_input, context=context_var_sel)
 
-        if self.num_future_inputs is not None and future_emb is not None:
-            self.prediction_window = ops.shape(future_emb)[1]
-            future_features = self.future_vsn(future_emb, context=context_var_sel)
+        if self.num_future_inputs is not None and future_input is not None:
+            self.prediction_window = ops.shape(future_input)[1]
+            future_features = self.future_vsn(future_input, context=context_var_sel)
         else:
-            future_features = ops.zeros((ops.shape(historic_emb)[0], self.prediction_window, self.hidden_units))
+            future_features = ops.zeros((ops.shape(historic_input)[0], self.prediction_window, self.hidden_units))
 
 
         # 3. LSTM encoder/decoder

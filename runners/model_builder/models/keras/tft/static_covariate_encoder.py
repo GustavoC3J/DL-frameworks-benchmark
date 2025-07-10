@@ -48,15 +48,18 @@ class StaticCovariateEncoder(layers.Layer):
         c_state_c = self.context_grn_state_c(inputs)
 
         return {
-            "context_variable_selection": c_variable_selection,
-            "context_enrichment": c_enrichment,
-            "context_state": (c_state_h, c_state_c)
+            c_variable_selection, # Context variable selection
+            c_enrichment, # Context enrichment
+            (c_state_h, c_state_c) # Context state (h, c)
         }
     
     
     def compute_output_shape(self, input_shape):
         return {
-            "context_variable_selection": (input_shape[0], self.hidden_dim),
-            "context_enrichment": (input_shape[0], self.hidden_dim),
-            "context_state": ((input_shape[0], self.hidden_dim), (input_shape[0], self.hidden_dim))
+            (input_shape[0], self.hidden_dim),
+            (input_shape[0], self.hidden_dim),
+            (
+                (input_shape[0], self.hidden_dim),
+                (input_shape[0], self.hidden_dim)
+            )
         }
