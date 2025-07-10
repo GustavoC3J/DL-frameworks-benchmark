@@ -13,6 +13,10 @@ class TFT(keras.Model):
     def __init__(
         self,
         hidden_units,
+        num_static_inputs,
+        num_historic_inputs,
+        num_future_inputs,
+        embedding_dim,
         output_size,
         num_attention_heads,
         dropout_rate=0.0,
@@ -32,18 +36,24 @@ class TFT(keras.Model):
         # Variable selection networks
         self.static_vsn = VariableSelectionNetwork(
             hidden_units=hidden_units,
+            num_inputs=num_static_inputs,
+            embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             time_distributed=False
         )
 
         self.historic_vsn = VariableSelectionNetwork(
             hidden_units=hidden_units,
+            num_inputs=num_historic_inputs,
+            embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             time_distributed=True
         )
 
         self.future_vsn = VariableSelectionNetwork(
             hidden_units=hidden_units,
+            num_inputs=num_future_inputs,
+            embedding_dim=embedding_dim,
             dropout_rate=dropout_rate,
             time_distributed=True
         )
@@ -113,6 +123,8 @@ class TFT(keras.Model):
 
         self.output_layer = layers.TimeDistributed(layers.Dense(output_size))
 
+    def build(self, input_shape):
+        super().build(input_shape)
 
     def call(self, inputs, training=None):
         """
@@ -169,7 +181,7 @@ class TFT(keras.Model):
 
         x = self.glu_multihead(attn_output)
         x = ops.add(x, enriched)
-        x = self.layer_norm_lstm(x)
+        x = self.layer_norm_multihead(x)
 
         decoder = self.grn_multihead(x)
 
@@ -179,5 +191,9 @@ class TFT(keras.Model):
         transformer_layer = self.layer_norm_output(x)
 
         output = self.output_layer(transformer_layer)
+
+        # Keep only the prediction window
+        prediction_window = future_emb.shape[1]
+        output = output[:, -prediction_window:, :]
 
         return output

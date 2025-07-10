@@ -34,6 +34,9 @@ class StaticCovariateEncoder(layers.Layer):
         )
 
 
+    def build(self, input_shape):
+        super().build(input_shape)
+
     def call(self, inputs, training=None):
         """
         inputs: Tensor of shape (batch_size, hidden_size)
@@ -48,4 +51,12 @@ class StaticCovariateEncoder(layers.Layer):
             "context_variable_selection": c_variable_selection,
             "context_enrichment": c_enrichment,
             "context_state": (c_state_h, c_state_c)
+        }
+    
+    
+    def compute_output_shape(self, input_shape):
+        return {
+            "context_variable_selection": (input_shape[0], self.hidden_dim),
+            "context_enrichment": (input_shape[0], self.hidden_dim),
+            "context_state": ((input_shape[0], self.hidden_dim), (input_shape[0], self.hidden_dim))
         }

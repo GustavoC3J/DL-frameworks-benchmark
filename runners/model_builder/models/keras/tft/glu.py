@@ -11,7 +11,6 @@ class GLU(layers.Layer):
         self.time_distributed = time_distributed
         self.activation = activation
 
-    def build(self, input_shape):
         self.dropout = layers.Dropout(self.dropout_rate) if self.dropout_rate else None
 
         Dense_wrapper = layers.TimeDistributed if self.time_distributed else lambda x: x
@@ -19,8 +18,9 @@ class GLU(layers.Layer):
         self.activation_layer = Dense_wrapper(layers.Dense(self.hidden_units, activation=self.activation))
         self.gated_layer = Dense_wrapper(layers.Dense(self.hidden_units, activation="sigmoid"))
 
-        super().build(input_shape)
 
+    def build(self, input_shape):
+        super().build(input_shape)
     
     def call(self, inputs, training=None):
         x = self.dropout(inputs) if self.dropout else inputs
@@ -31,3 +31,6 @@ class GLU(layers.Layer):
         x = ops.multiply(activation_res, gated_res)
 
         return x
+    
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], self.hidden_units) if self.time_distributed else (input_shape[0], self.hidden_units)

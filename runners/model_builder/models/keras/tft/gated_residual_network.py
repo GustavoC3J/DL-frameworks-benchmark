@@ -14,18 +14,9 @@ class GatedResidualNetwork(layers.Layer):
         self.dropout_rate = dropout_rate
         self.time_distributed = time_distributed
 
-    
-    def build(self, input_shape):
-
-        # Input dimension
-        input_dim = input_shape[-1]
-
         Dense_wrapper = layers.TimeDistributed if self.time_distributed else lambda x: x
 
-        # If input dimension doesn't match output's, apply a projection
-        self.projection = None
-        if input_dim != self.output_size:
-            self.projection = Dense_wrapper(layers.Dense(self.output_size))
+        self.projection = Dense_wrapper(layers.Dense(self.output_size))
 
         # Feed forward layers
         self.dense1 = Dense_wrapper(layers.Dense(self.hidden_units))
@@ -41,13 +32,15 @@ class GatedResidualNetwork(layers.Layer):
         # Dropout
         self.dropout = layers.Dropout(self.dropout_rate) if self.dropout_rate else lambda x: x
 
-        super().build(input_shape)
 
+    def build(self, input_shape):
+        super().build(input_shape)
 
     def call(self, inputs, context=None, training=None):
 
         # Residual connection
-        residual = self.projection(inputs) if self.projection else inputs
+        # If input dimension doesn't match output's, apply a projection
+        residual = self.projection(inputs) if inputs.shape[-1] != self.output_size else inputs
 
         # First linear and add context (if available)
         x = self.dense1(inputs)
@@ -71,3 +64,7 @@ class GatedResidualNetwork(layers.Layer):
         x = self.layer_norm(x)
 
         return x
+    
+    
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], self.output_size) if self.time_distributed else (input_shape[0], self.output_size)
