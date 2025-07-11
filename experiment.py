@@ -8,7 +8,7 @@ import traceback
 
 import pandas as pd
 
-from datasets.data_loader import DataLoader
+from datasets.loader.data_loader import DataLoader
 from utils.gpu_metrics import get_gpu_memory_total
 from utils.precision import Precision
 
@@ -49,7 +49,7 @@ def run_experiment(runner, params, output_directory):
     definition_time = time.time() - start
 
     # Load formatted datasets used in training
-    data_loader = DataLoader(params.model_type, params.seed)
+    data_loader = DataLoader(params.model_type, params.seed, split_vars=params.model_complexity == "complex")
     formatted_data = data_loader.load_data("train")
 
     # Start training

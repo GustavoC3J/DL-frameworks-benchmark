@@ -7,6 +7,7 @@ from keras.models import Model, Sequential
 from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
+from runners.model_builder.models.keras.tft.tft import TFT
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -214,44 +215,22 @@ class KerasModelBuilder(ModelBuilder):
         interval = 10
         window = 48 * 60 // interval
 
-        lstm_layers = 8
-        cells = 512
-        dropout = 0.4
+        hidden_units = 512
+        output_size = 1  # Output (trip count)
+        num_attention_heads = 4
+        dropout = 0.1
         lr = 1e-4
         
         # Build the model
-        model = Sequential()
-        model.add(Input(shape=(window, 11))) # Input layer
-
-        # Add the hidden LSTM layers
-        for i in range(1, lstm_layers + 1):
-
-            # From the middle, the cells are halved
-            if (i > (lstm_layers // 2)):
-                cells = cells // 2
-
-            model.add(LSTM(cells, return_sequences = (i < lstm_layers))) # Last LSTM layer doesn't return sequences
-            model.add(BatchNormalization())
-            model.add(Dropout(dropout))
-
-            
-        # Output layer
-        model.add(Dense(256))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(128))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(64))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.1))
-        
-        model.add(Dense(1))
+        model = TFT(
+            hidden_units = hidden_units,
+            num_historic_inputs = 11,  # Number of historic variables
+            embedding_dim = 3,         # Embedding dimension for each variable
+            output_size = output_size,           # Output size (e.g., trip count)
+            num_attention_heads = num_attention_heads,   # Number of attention heads
+            dropout_rate = dropout,
+            prediction_window = window
+        )
 
         # Compile the model
         model.compile(

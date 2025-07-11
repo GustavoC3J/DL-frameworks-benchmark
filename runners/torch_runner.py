@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from keras.api.callbacks import ModelCheckpoint
 
-from datasets.data_loader_factory import DataLoaderFactory
+from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
