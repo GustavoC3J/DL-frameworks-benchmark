@@ -138,7 +138,3 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             x.append(data[i:i+timesteps])  # Input window
             y.append(data[i+timesteps, -1])  # Next trip count
         return np.array(x), np.array(y)
-
-
-    def __split_vars(self, data):
-        return (None, data, None)  # Static, historic, future vars

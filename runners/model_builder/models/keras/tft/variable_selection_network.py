@@ -7,7 +7,7 @@ from runners.model_builder.models.keras.tft.gated_residual_network import GatedR
 class VariableSelectionNetwork(layers.Layer):
     """Variable Selection Network (VSN)"""
 
-    def __init__(self, hidden_units, num_inputs, embedding_dim, dropout_rate=None, time_distributed=True, **kwargs):
+    def __init__(self, hidden_units, num_inputs, dropout_rate=None, time_distributed=True, **kwargs):
         super().__init__(**kwargs)
         self.hidden_units = hidden_units
         self.dropout_rate = dropout_rate
@@ -25,8 +25,8 @@ class VariableSelectionNetwork(layers.Layer):
         
         self.softmax = layers.Softmax()
         self.flatten = layers.Reshape( 
-            (-1, num_inputs * embedding_dim) if self.time_distributed else \
-            (num_inputs * embedding_dim,)
+            (-1, num_inputs * hidden_units) if self.time_distributed else \
+            (num_inputs * hidden_units,)
         )
         
 
@@ -41,10 +41,10 @@ class VariableSelectionNetwork(layers.Layer):
         super().build(input_shape)
 
     def call(self, inputs, context=None, training=None):
-        # inputs: (batch_size, num_inputs, embedding_dim) or (batch_size, window, num_inputs, embedding_dim)
+        # inputs: (batch_size, num_inputs, hidden_units) or (batch_size, window, num_inputs, hidden_units)
 
         # Variable selection weights
-        flatten_inputs = self.flatten(inputs)  # (batch_size, window, num_inputs * embedding_dim)
+        flatten_inputs = self.flatten(inputs)  # (batch_size, window, num_inputs * hidden_units)
         weights = self.selection_grn(flatten_inputs, context, training=training) # (batch_size, window, num_inputs)
         weights = self.softmax(weights)  # (batch_size, window, num_inputs)
         weights = ops.expand_dims(weights, axis=-1)  # (batch_size, window, num_inputs, 1)

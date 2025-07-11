@@ -1,5 +1,6 @@
 
 
+from runners.model_builder.models.keras.tft.input_embedding import InputEmbedding
 from runners.model_builder.models.keras.tft.gated_residual_network import GatedResidualNetwork
 from runners.model_builder.models.keras.tft.glu import GLU
 from runners.model_builder.models.keras.tft.static_covariate_encoder import StaticCovariateEncoder
@@ -13,66 +14,92 @@ class TFT(keras.Model):
     def __init__(
         self,
         hidden_units,
-        num_historic_inputs,
-        embedding_dim,
         output_size,
         num_attention_heads,
+        historical_window,
+        observed_idx: list, # observed (target/s)
+        static_idx: list=[], # static
+        known_idx: list=[], # known
+        unknown_idx: list=[], # unknown
+        categorical_idx: list=[],
+        categorical_counts: list=[], # Number of categories for each categorical variable.
         dropout_rate=0.0,
-        num_static_inputs=None, # If it's None, static inputs will not be used.
-        num_future_inputs=None, # If it's None, future inputs will not be used.
-        prediction_window=None, # If future inputs are provided, this will be set to the number of time steps in the future inputs.
         **kwargs
     ):
         super().__init__(**kwargs)
         self.hidden_units = hidden_units
-        self.num_static_inputs = num_static_inputs
-        self.num_historic_inputs = num_historic_inputs
-        self.num_future_inputs = num_future_inputs
-        self.prediction_window = prediction_window
-        self.output_size = output_size
         self.dropout_rate = dropout_rate
+        self.historical_window = historical_window
 
+        self.observed_idx = observed_idx
+        self.static_idx = static_idx
+        self.known_idx = known_idx
+        self.unknown_idx = unknown_idx
+        self.categorical_idx = categorical_idx
 
-        if num_future_inputs is None and self.prediction_window is None:
+        self.num_inputs = len(self.observed_idx) + len(self.static_idx) + len(self.known_idx) + len(self.unknown_idx)
+        self.num_static_inputs = len(self.static_idx)
+        self.num_historical_inputs = self.num_inputs - self.num_static_inputs
+        self.num_future_inputs = len(self.known_idx)
+
+        self.output_size = output_size
+        
+
+        if self.num_future_inputs == 0 and self.prediction_window is None:
             raise ValueError('"num_future_inputs" or "prediction_window" is required.')
+        
+        if categorical_idx and not categorical_counts:
+            raise ValueError('"categorical_counts" is required when "categorical_indexes" is provided.')
+        
+
+        # Embeddings
+        self.embedding_layer = InputEmbedding(
+            num_inputs=self.num_inputs,
+            embedding_dim=hidden_units,
+            historical_window=historical_window,
+            static_idx=static_idx,
+            observed_idx=observed_idx,
+            known_idx=known_idx,
+            unknown_idx=unknown_idx,
+            categorical_idx=categorical_idx,
+            categorical_counts=categorical_counts
+        )
+        
 
         # Static
-        if num_static_inputs is None:
+        if self.num_static_inputs == 0:
             self.static_encoder = None
             self.static_vsn = None
         else:
+            # Variable selection network
+            self.static_vsn = VariableSelectionNetwork(
+                hidden_units=hidden_units,
+                num_inputs=self.num_static_inputs,
+                dropout_rate=dropout_rate,
+                time_distributed=False
+            )
+
             # Static covariate encoder
             self.static_encoder = StaticCovariateEncoder(
                 hidden_dim=hidden_units,
                 dropout_rate=dropout_rate
             )
 
-            # Variable selection network
-            self.static_vsn = VariableSelectionNetwork(
-                hidden_units=hidden_units,
-                num_inputs=num_static_inputs,
-                embedding_dim=embedding_dim,
-                dropout_rate=dropout_rate,
-                time_distributed=False
-            )
-
-        # Historic variable selection network
-        self.historic_vsn = VariableSelectionNetwork(
+        # historical variable selection network
+        self.historical_vsn = VariableSelectionNetwork(
             hidden_units=hidden_units,
-            num_inputs=num_historic_inputs,
-            embedding_dim=embedding_dim,
+            num_inputs=self.num_historical_inputs,
             dropout_rate=dropout_rate,
             time_distributed=True
         )
 
         # Future variable selection network
-        if num_future_inputs is None:
+        if self.num_future_inputs == 0:
             self.future_vsn = None
         else:
             self.future_vsn = VariableSelectionNetwork(
                 hidden_units=hidden_units,
-                num_inputs=num_future_inputs,
-                embedding_dim=embedding_dim,
+                num_inputs=self.num_future_inputs,
                 dropout_rate=dropout_rate,
                 time_distributed=True
             )
@@ -142,27 +169,19 @@ class TFT(keras.Model):
 
         self.output_layer = layers.TimeDistributed(layers.Dense(output_size))
 
+
     def build(self, input_shape):
         super().build(input_shape)
 
+
     def call(self, inputs: tuple, training=None):
         """
-        inputs: tuple of tensors:
-            - 'static': (batch, num_static_vars, emb_dim)
-            - 'historic': (batch, time_steps, num_historic_vars, emb_dim)
-            - 'future': (batch, time_steps, num_future_vars, emb_dim)
+        inputs: Tensor of shape (batch_size, window, num_inputs)
         """
-        static_input, historic_input, future_input = inputs
 
-        if historic_input is None:
-            raise ValueError('Input "historic" is required.')
-        
-        if self.num_static_inputs is not None and static_input is None:
-            raise ValueError('Input "static" is required when "num_static_inputs" is not None.')
-        
-        if self.num_future_inputs is not None and future_input is None:
-            raise ValueError('Input "future" is required when "num_future_inputs" is not None.')
-        
+        # Apply the embedding layer and split inputs into static, historical, and future
+        static_input, historical_input, future_input = self.embedding_layer(inputs)
+
 
         # 1. Static covariate encoding
         if self.num_static_inputs is not None and static_input is not None:
@@ -173,22 +192,22 @@ class TFT(keras.Model):
         else:
             # If there are no static inputs, use zeros for context
             context_var_sel = None
-            context_enrichment = context_state_h = context_state_c = ops.zeros((ops.shape(historic_input)[0], self.hidden_units))
+            context_enrichment = context_state_h = context_state_c = ops.zeros((ops.shape(historical_input)[0], self.hidden_units))
 
 
         # 2. Variable selection
-        historic_features = self.historic_vsn(historic_input, context=context_var_sel)
+        historical_features = self.historical_vsn(historical_input, context=context_var_sel)
 
         if self.num_future_inputs is not None and future_input is not None:
             self.prediction_window = ops.shape(future_input)[1]
             future_features = self.future_vsn(future_input, context=context_var_sel)
         else:
-            future_features = ops.zeros((ops.shape(historic_input)[0], self.prediction_window, self.hidden_units))
+            future_features = ops.zeros((ops.shape(historical_input)[0], self.prediction_window, self.hidden_units))
 
 
         # 3. LSTM encoder/decoder
         encoder_output, state_h, state_c = self.encoder_lstm(
-            historic_features,
+            historical_features,
             initial_state=[context_state_h, context_state_c]
         )
 
@@ -201,7 +220,7 @@ class TFT(keras.Model):
         lstm_layer = ops.concatenate([encoder_output, decoder_output], axis=1)
 
         # Apply gated skip connection
-        input_embeddings = ops.concatenate([historic_features, future_features], axis=1)
+        input_embeddings = ops.concatenate([historical_features, future_features], axis=1)
 
         lstm_layer, _ = self.glu_lstm(lstm_layer)
         temporal_feature_layer = ops.add(lstm_layer, input_embeddings)

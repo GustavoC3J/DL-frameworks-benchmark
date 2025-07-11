@@ -49,7 +49,7 @@ def run_experiment(runner, params, output_directory):
     definition_time = time.time() - start
 
     # Load formatted datasets used in training
-    data_loader = DataLoader(params.model_type, params.seed, split_vars=params.model_complexity == "complex")
+    data_loader = DataLoader(params.model_type, params.seed)
     formatted_data = data_loader.load_data("train")
 
     # Start training
