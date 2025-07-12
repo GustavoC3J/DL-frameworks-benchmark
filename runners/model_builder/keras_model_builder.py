@@ -222,8 +222,8 @@ class KerasModelBuilder(ModelBuilder):
         dropout_rate = 0.2
         lr = 1e-4
 
-        observed_idx=[7]
-        unknown_idx=[i for i in range(7)]
+        observed_idx=[10]
+        unknown_idx=[i for i in range(10)]
         
         # Build the model
         model = TFT(

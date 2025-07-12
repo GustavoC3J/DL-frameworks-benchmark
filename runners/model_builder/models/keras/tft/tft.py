@@ -176,7 +176,7 @@ class TFT(keras.Model):
         super().build(input_shape)
 
 
-    def call(self, inputs: tuple, training=None):
+    def call(self, inputs, training=None):
         """
         inputs: Tensor of shape (batch_size, window, num_inputs)
         """
@@ -224,7 +224,7 @@ class TFT(keras.Model):
         # Apply gated skip connection
         input_embeddings = ops.concatenate([historical_features, future_features], axis=1)
 
-        lstm_layer, _ = self.glu_lstm(lstm_layer)
+        lstm_layer = self.glu_lstm(lstm_layer)
         temporal_feature_layer = ops.add(lstm_layer, input_embeddings)
         temporal_feature_layer = self.layer_norm_lstm(temporal_feature_layer)
 
