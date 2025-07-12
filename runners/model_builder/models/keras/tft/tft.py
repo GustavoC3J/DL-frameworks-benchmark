@@ -124,8 +124,7 @@ class TFT(keras.Model):
         self.glu_lstm = GLU(
             hidden_units,
             dropout_rate=dropout_rate,
-            time_distributed=True,
-            activation=None
+            time_distributed=True
         )
 
         self.layer_norm_lstm = layers.LayerNormalization()
@@ -147,8 +146,7 @@ class TFT(keras.Model):
         self.glu_multihead = GLU(
             hidden_units,
             dropout_rate=dropout_rate,
-            time_distributed=True,
-            activation=None
+            time_distributed=True
         )
 
         self.layer_norm_multihead = layers.LayerNormalization()
@@ -163,8 +161,7 @@ class TFT(keras.Model):
         # Output layer
         self.glu_output = GLU(
             hidden_units,
-            time_distributed=True,
-            activation=None
+            time_distributed=True
         )
 
         self.layer_norm_output = layers.LayerNormalization()

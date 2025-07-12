@@ -49,7 +49,6 @@ class GatedResidualNetwork(layers.Layer):
             # If it's time series, add temporal dimension to context
             if self.time_distributed:
                 expanded_context = ops.expand_dims(context, axis=1)
-                expanded_context = ops.repeat(expanded_context, repeats=x.shape[1], axis=1)
             else:
                 expanded_context = context
 

@@ -215,7 +215,7 @@ class KerasModelBuilder(ModelBuilder):
         interval = 10
         historical_window = 48 * 60 // interval
 
-        hidden_units = 128
+        hidden_units = 32
         output_size = 1  # Output features (trip count)
         prediction_window = 1 # Output timesteps
         num_attention_heads = 4
@@ -241,7 +241,8 @@ class KerasModelBuilder(ModelBuilder):
         model.compile(
             optimizer = Adam(learning_rate = lr),             
             loss = 'mse',
-            metrics = ['mae']
+            metrics = ['mae'],
+            jit_compile=True
         )
         
         return model
