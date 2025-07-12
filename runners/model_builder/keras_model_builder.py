@@ -213,23 +213,28 @@ class KerasModelBuilder(ModelBuilder):
 
     def _lstm_complex(self):
         interval = 10
-        window = 48 * 60 // interval
+        historical_window = 48 * 60 // interval
 
-        hidden_units = 512
-        output_size = 1  # Output (trip count)
+        hidden_units = 128
+        output_size = 1  # Output features (trip count)
+        prediction_window = 1 # Output timesteps
         num_attention_heads = 4
-        dropout = 0.1
+        dropout_rate = 0.2
         lr = 1e-4
+
+        observed_idx=[7]
+        unknown_idx=[i for i in range(7)]
         
         # Build the model
         model = TFT(
             hidden_units = hidden_units,
-            num_historic_inputs = 11,  # Number of historic variables
-            embedding_dim = 3,         # Embedding dimension for each variable
-            output_size = output_size,           # Output size (e.g., trip count)
-            num_attention_heads = num_attention_heads,   # Number of attention heads
-            dropout_rate = dropout,
-            prediction_window = window
+            output_size = output_size,
+            num_attention_heads = num_attention_heads,
+            historical_window=historical_window,
+            prediction_window = prediction_window,
+            observed_idx=observed_idx,
+            unknown_idx=unknown_idx,
+            dropout_rate = dropout_rate
         )
 
         # Compile the model

@@ -24,12 +24,14 @@ class TFT(keras.Model):
         categorical_idx: list=[],
         categorical_counts: list=[], # Number of categories for each categorical variable.
         dropout_rate=0.0,
+        prediction_window=None,
         **kwargs
     ):
         super().__init__(**kwargs)
         self.hidden_units = hidden_units
         self.dropout_rate = dropout_rate
         self.historical_window = historical_window
+        self.prediction_window = prediction_window
 
         self.observed_idx = observed_idx
         self.static_idx = static_idx
@@ -46,7 +48,7 @@ class TFT(keras.Model):
         
 
         if self.num_future_inputs == 0 and self.prediction_window is None:
-            raise ValueError('"num_future_inputs" or "prediction_window" is required.')
+            raise ValueError('"known_idx" or "prediction_window" is required.')
         
         if categorical_idx and not categorical_counts:
             raise ValueError('"categorical_counts" is required when "categorical_indexes" is provided.')
@@ -190,9 +192,9 @@ class TFT(keras.Model):
 
             context_var_sel, context_enrichment, (context_state_h, context_state_c) = static_context
         else:
-            # If there are no static inputs, use zeros for context
-            context_var_sel = None
-            context_enrichment = context_state_h = context_state_c = ops.zeros((ops.shape(historical_input)[0], self.hidden_units))
+            # If there are no static inputs, set to None and zeros for context state
+            context_var_sel = context_enrichment = None
+            context_state_h = context_state_c = ops.zeros((ops.shape(historical_input)[0], self.hidden_units))
 
 
         # 2. Variable selection
@@ -226,11 +228,10 @@ class TFT(keras.Model):
         temporal_feature_layer = ops.add(lstm_layer, input_embeddings)
         temporal_feature_layer = self.layer_norm_lstm(temporal_feature_layer)
 
-        # 4. Static enrichment layers
-        expanded_context_enrichment = ops.expand_dims(context_enrichment, axis=1)
-        enriched, _ = self.grn_enrichment(
+        # 4. Static enrichment
+        enriched = self.grn_enrichment(
             temporal_feature_layer,
-            context=expanded_context_enrichment
+            context=context_enrichment
         )
 
         # 5. Self-attention => same tensor for query, key, and value

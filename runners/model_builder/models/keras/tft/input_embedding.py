@@ -76,22 +76,27 @@ class InputEmbedding(layers.Layer):
         observed_inputs = ops.concatenate(observed_inputs, axis=-2) # (batch_size, window, num_observed, embedding_dim)
 
         known_inputs = [embedded_inputs[i] for i in self.known_idx]
-        known_inputs = ops.concatenate(known_inputs, axis=-2) # (batch_size, window, num_known, embedding_dim)
+        known_inputs = ops.concatenate(known_inputs, axis=-2) if known_inputs else None # (batch_size, window, num_known, embedding_dim)
         
         unknown_inputs = [embedded_inputs[i] for i in self.unknown_idx]
-        unknown_inputs = ops.concatenate(unknown_inputs, axis=-2) # (batch_size, window, num_unkown, embedding_dim)
+        unknown_inputs = ops.concatenate(unknown_inputs, axis=-2) if unknown_inputs else None # (batch_size, window, num_unkown, embedding_dim)
 
 
         # Historical and future inputs
-        historical_inputs = ops.concatenate([  # (batch_size, historical_window, num_observed + num_known + num_unkown, embedding_dim)
-            unknown_inputs[:, :self.historical_window, :, :],
-            known_inputs[:, :self.historical_window, :, :],
-            observed_inputs[:, :self.historical_window, :, :]
-            ],
-            axis=-2
-        )
+        historical_inputs = []
+
+        if (unknown_inputs is not None):
+            historical_inputs.append(unknown_inputs[:, :self.historical_window, :, :])
+
+        if (known_inputs is not None):
+            historical_inputs.append(known_inputs[:, :self.historical_window, :, :])
+
+        historical_inputs.append(observed_inputs[:, :self.historical_window, :, :])
+
+        historical_inputs = ops.concatenate(historical_inputs, axis=-2) # (batch_size, historical_window, num_observed + num_known + num_unkown, embedding_dim)
         
-        future_inputs = known_inputs[:, self.historical_window:, :, :] # (batch_size, prediction_window, num_unkown, embedding_dim)
+
+        future_inputs = known_inputs[:, self.historical_window:, :, :] if known_inputs is not None else None # (batch_size, prediction_window, num_unkown, embedding_dim)
 
         return static_inputs, historical_inputs, future_inputs
     
