@@ -10,6 +10,7 @@ class InputEmbedding(layers.Layer):
             num_inputs,
             embedding_dim,
             historical_window,
+            prediction_window,
             static_idx, # static
             observed_idx, # observed (target(s))
             known_idx, # known
@@ -23,6 +24,7 @@ class InputEmbedding(layers.Layer):
         self.num_inputs = num_inputs
         self.embedding_dim = embedding_dim
         self.historical_window = historical_window
+        self.prediction_window = prediction_window
 
         self.static_idx = static_idx
         self.observed_idx = observed_idx
@@ -59,7 +61,13 @@ class InputEmbedding(layers.Layer):
         Future: Known features
         """
 
-        batch_size, window_size, _ = inputs.shape
+        batch_size = inputs.shape[0]
+        window_size = self.historical_window + self.prediction_window
+
+        # If inputs' window is longer than needed, slice it
+        if inputs.shape[1] > window_size:
+            inputs = ops.slice(inputs, [0, inputs.shape[1] - window_size, 0], [batch_size, window_size, inputs.shape[2]])
+
 
         static_inputs = []
         historical_inputs = []
@@ -84,6 +92,8 @@ class InputEmbedding(layers.Layer):
                 historical_inputs.append(output)
 
         
+        # Join each list into a tensor
+
         if static_inputs:
             # Keep only first element (repeat it later if needed)
             static_inputs = ops.slice( # (batch_size, 1, num_static, embedding_dim)
@@ -95,6 +105,7 @@ class InputEmbedding(layers.Layer):
         else:
             static_inputs = None
 
+
         historical_inputs = ops.slice(  # (batch_size, window, num observed + unknown + known, embedding_dim)
             ops.concatenate(historical_inputs, axis=-2),
             start_indices=[0, 0, 0, 0],
@@ -105,10 +116,11 @@ class InputEmbedding(layers.Layer):
             future_inputs = ops.slice(  # (batch_size, prediction_window, num known, embedding_dim)
                 ops.concatenate(future_inputs, axis=-2),
                 start_indices=[0, self.historical_window, 0, 0],
-                shape=[batch_size, window_size - self.historical_window, len(self.known_idx), self.embedding_dim]
+                shape=[batch_size, self.prediction_window, len(self.known_idx), self.embedding_dim]
             )
         else:
             future_inputs = None
+
 
         return static_inputs, historical_inputs, future_inputs
     

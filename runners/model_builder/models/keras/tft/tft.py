@@ -17,6 +17,7 @@ class TFT(keras.Model):
         output_size,
         num_attention_heads,
         historical_window,
+        prediction_window,
         observed_idx: list, # observed (target/s)
         static_idx: list=[], # static
         known_idx: list=[], # known
@@ -24,7 +25,6 @@ class TFT(keras.Model):
         categorical_idx: list=[],
         categorical_counts: list=[], # Number of categories for each categorical variable.
         dropout_rate=0.0,
-        prediction_window=None,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -46,10 +46,6 @@ class TFT(keras.Model):
 
         self.output_size = output_size
         
-
-        if self.num_future_inputs == 0 and self.prediction_window is None:
-            raise ValueError('"known_idx" or "prediction_window" is required.')
-        
         if categorical_idx and not categorical_counts:
             raise ValueError('"categorical_counts" is required when "categorical_indexes" is provided.')
         
@@ -59,6 +55,7 @@ class TFT(keras.Model):
             num_inputs=self.num_inputs,
             embedding_dim=hidden_units,
             historical_window=historical_window,
+            prediction_window=prediction_window,
             static_idx=static_idx,
             observed_idx=observed_idx,
             known_idx=known_idx,
