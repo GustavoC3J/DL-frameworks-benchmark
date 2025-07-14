@@ -213,11 +213,11 @@ class KerasModelBuilder(ModelBuilder):
 
     def _lstm_complex(self):
         interval = 10
-        historical_window = 48 * 60 // interval
-
-        hidden_units = 32
-        output_size = 1  # Output features (trip count)
+        historical_window = 8 * 60 // interval # 8h
         prediction_window = 1 # Output timesteps
+
+        hidden_units = 64
+        output_size = 1  # Output features (trip count)
         num_attention_heads = 4
         dropout_rate = 0.2
         lr = 1e-4
@@ -231,7 +231,7 @@ class KerasModelBuilder(ModelBuilder):
             output_size = output_size,
             num_attention_heads = num_attention_heads,
             historical_window=historical_window,
-            prediction_window = prediction_window,
+            prediction_window=prediction_window,
             observed_idx=observed_idx,
             unknown_idx=unknown_idx,
             dropout_rate = dropout_rate

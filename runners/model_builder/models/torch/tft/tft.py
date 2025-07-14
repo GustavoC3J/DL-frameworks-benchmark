@@ -1,15 +1,15 @@
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-from runners.model_builder.models.keras.tft.input_embedding import InputEmbedding
-from runners.model_builder.models.keras.tft.gated_residual_network import GatedResidualNetwork
-from runners.model_builder.models.keras.tft.glu import GLU
-from runners.model_builder.models.keras.tft.static_covariate_encoder import StaticCovariateEncoder
-from runners.model_builder.models.keras.tft.variable_selection_network import VariableSelectionNetwork
+from input_embedding import InputEmbedding
+from gated_residual_network import GatedResidualNetwork
+from glu import GLU
+from static_covariate_encoder import StaticCovariateEncoder
+from variable_selection_network import VariableSelectionNetwork
 
-import keras
-from keras import layers, ops
-
-class TFT(keras.Model):
+class TFT(nn.Module):
     def __init__(
         self,
         hidden_units,
@@ -17,16 +17,15 @@ class TFT(keras.Model):
         num_attention_heads,
         historical_window,
         prediction_window,
-        observed_idx: list, # observed (target/s)
-        static_idx: list=[], # static
-        known_idx: list=[], # known
-        unknown_idx: list=[], # unknown
-        categorical_idx: list=[],
-        categorical_counts: list=[], # Number of categories for each categorical variable.
+        observed_idx, # observed (target/s)
+        static_idx=[], # static
+        known_idx=[], # known
+        unknown_idx=[], # unknown
+        categorical_idx=[],
+        categorical_counts=[], # Number of categories for each categorical variable.
         dropout_rate=0.0,
-        **kwargs
     ):
-        super().__init__(**kwargs)
+        super().__init__()
         self.hidden_units = hidden_units
         self.dropout_rate = dropout_rate
         self.historical_window = historical_window
@@ -44,10 +43,9 @@ class TFT(keras.Model):
         self.num_future_inputs = len(self.known_idx)
 
         self.output_size = output_size
-        
+
         if categorical_idx and not categorical_counts:
             raise ValueError('"categorical_counts" is required when "categorical_indexes" is provided.')
-        
 
         # Embeddings
         self.embedding_layer = InputEmbedding(
@@ -62,14 +60,12 @@ class TFT(keras.Model):
             categorical_idx=categorical_idx,
             categorical_counts=categorical_counts
         )
-        
 
         # Static
         if self.num_static_inputs == 0:
             self.static_encoder = None
             self.static_vsn = None
         else:
-            # Variable selection network
             self.static_vsn = VariableSelectionNetwork(
                 hidden_units=hidden_units,
                 num_inputs=self.num_static_inputs,
@@ -77,7 +73,6 @@ class TFT(keras.Model):
                 time_distributed=False
             )
 
-            # Static covariate encoder
             self.static_encoder = StaticCovariateEncoder(
                 hidden_dim=hidden_units,
                 dropout_rate=dropout_rate
@@ -103,17 +98,17 @@ class TFT(keras.Model):
             )
 
         # LSTM history and future
-        self.encoder_lstm = layers.LSTM(
+        self.encoder_lstm = nn.LSTM(
             hidden_units,
-            return_sequences=True,
-            return_state=True,
+            hidden_units,
+            batch_first=True,
             dropout=dropout_rate
         )
 
-        self.decoder_lstm = layers.LSTM(
+        self.decoder_lstm = nn.LSTM(
             hidden_units,
-            return_sequences=True,
-            return_state=False,
+            hidden_units,
+            batch_first=True,
             dropout=dropout_rate
         )
 
@@ -123,7 +118,7 @@ class TFT(keras.Model):
             time_distributed=True
         )
 
-        self.layer_norm_lstm = layers.LayerNormalization()
+        self.layer_norm_lstm = nn.LayerNorm(hidden_units)
 
         # Context enrichment
         self.grn_enrichment = GatedResidualNetwork(
@@ -133,10 +128,11 @@ class TFT(keras.Model):
         )
 
         # Multi-head self-attention
-        self.self_attention = layers.MultiHeadAttention(
+        self.self_attention = nn.MultiheadAttention(
+            embed_dim=hidden_units,
             num_heads=num_attention_heads,
-            key_dim=hidden_units // num_attention_heads,
-            dropout=dropout_rate
+            dropout=dropout_rate,
+            batch_first=True
         )
 
         self.glu_multihead = GLU(
@@ -145,9 +141,8 @@ class TFT(keras.Model):
             time_distributed=True
         )
 
-        self.layer_norm_multihead = layers.LayerNormalization()
+        self.layer_norm_multihead = nn.LayerNorm(hidden_units)
 
-        
         self.grn_multihead = GatedResidualNetwork(
             hidden_units=hidden_units,
             dropout_rate=dropout_rate,
@@ -160,28 +155,22 @@ class TFT(keras.Model):
             time_distributed=True
         )
 
-        self.layer_norm_output = layers.LayerNormalization()
+        self.layer_norm_output = nn.LayerNorm(hidden_units)
 
-        self.output_layer = layers.TimeDistributed(layers.Dense(output_size))
+        self.output_layer = nn.Linear(hidden_units, output_size)
 
-
-    def build(self, input_shape):
-        super().build(input_shape)
-
-
-    def call(self, inputs, training=None):
+    def forward(self, inputs):
         """
         inputs: Tensor of shape (batch_size, window, num_inputs)
         """
 
-        batch_size = ops.shape(historical_input)[0]
+        batch_size = inputs.shape[0]
 
         # Apply the embedding layer and split inputs into static, historical, and future
         static_input, historical_input, future_input = self.embedding_layer(inputs)
 
-
         # 1. Static covariate encoding
-        if self.num_static_inputs is not None and static_input is not None:
+        if self.num_static_inputs and static_input is not None:
             static_selected = self.static_vsn(static_input)
             static_context = self.static_encoder(static_selected)
 
@@ -189,37 +178,34 @@ class TFT(keras.Model):
         else:
             # If there are no static inputs, set to None and zeros for context state
             context_var_sel = context_enrichment = None
-            context_state_h = context_state_c = ops.zeros((batch_size, self.hidden_units))
-
+            context_state_h = context_state_c = torch.zeros((batch_size, self.hidden_units), device=inputs.device)
 
         # 2. Variable selection
         historical_features = self.historical_vsn(historical_input, context=context_var_sel)
 
-        if self.num_future_inputs is not None and future_input is not None:
+        if self.num_future_inputs and future_input is not None:
             future_features = self.future_vsn(future_input, context=context_var_sel)
         else:
-            future_features = ops.zeros((batch_size, self.prediction_window, self.hidden_units))
-
+            future_features = torch.zeros((batch_size, self.prediction_window, self.hidden_units), device=inputs.device)
 
         # 3. LSTM encoder/decoder
-        encoder_output, state_h, state_c = self.encoder_lstm(
+        encoder_output, (state_h, state_c) = self.encoder_lstm(
             historical_features,
-            initial_state=[context_state_h, context_state_c]
+            (context_state_h.unsqueeze(0), context_state_c.unsqueeze(0)) # Expects (1, batch_size, hidden_units)
         )
 
         # Use the last state of the encoder as the initial state for the encoder
-        decoder_output = self.decoder_lstm(
-            future_features,
-            initial_state=[state_h, state_c]
+        decoder_output, _ = self.decoder_lstm(
+            future_features, (state_h, state_c)
         )
 
-        lstm_layer = ops.concatenate([encoder_output, decoder_output], axis=1)
+        lstm_layer = torch.cat([encoder_output, decoder_output], dim=1)
 
         # Apply gated skip connection
-        input_embeddings = ops.concatenate([historical_features, future_features], axis=1)
+        input_embeddings = torch.cat([historical_features, future_features], dim=1)
 
         lstm_layer = self.glu_lstm(lstm_layer)
-        temporal_feature_layer = ops.add(lstm_layer, input_embeddings)
+        temporal_feature_layer = lstm_layer + input_embeddings
         temporal_feature_layer = self.layer_norm_lstm(temporal_feature_layer)
 
         # 4. Static enrichment
@@ -229,17 +215,17 @@ class TFT(keras.Model):
         )
 
         # 5. Self-attention => same tensor for query, key, and value
-        attn_output = self.self_attention(enriched, enriched, enriched)
+        attn_output, _ = self.self_attention(enriched, enriched, enriched)
 
         x = self.glu_multihead(attn_output)
-        x = ops.add(x, enriched)
+        x = x + enriched
         x = self.layer_norm_multihead(x)
 
         decoder = self.grn_multihead(x)
 
         # 6. Final skip connection and output layer
         decoder = self.glu_output(decoder)
-        x = ops.add(decoder, temporal_feature_layer)
+        x = decoder + temporal_feature_layer
         transformer_layer = self.layer_norm_output(x)
 
         output = self.output_layer(transformer_layer)
