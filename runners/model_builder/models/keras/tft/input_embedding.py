@@ -61,12 +61,13 @@ class InputEmbedding(layers.Layer):
         Future: Known features
         """
 
-        batch_size = inputs.shape[0]
+        input_shape = ops.shape(inputs)
+        batch_size = input_shape[0]
         window_size = self.historical_window + self.prediction_window
 
         # If inputs' window is longer than needed, slice it
-        if inputs.shape[1] > window_size:
-            inputs = ops.slice(inputs, [0, inputs.shape[1] - window_size, 0], [batch_size, window_size, inputs.shape[2]])
+        if input_shape[1] > window_size:
+            inputs = ops.slice(inputs, [0, input_shape[1] - window_size, 0], [batch_size, window_size, input_shape[2]])
 
 
         static_inputs = []

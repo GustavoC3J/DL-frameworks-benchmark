@@ -43,7 +43,7 @@ class VariableSelectionNetwork(layers.Layer):
     def call(self, inputs, context=None, training=None):
         # inputs: (batch_size, num_inputs, hidden_units) or (batch_size, window, num_inputs, hidden_units)
 
-        input_shape = inputs.shape
+        input_shape = ops.shape(inputs)
 
         # Variable selection weights
         flatten_inputs = self.flatten(inputs)  # (batch_size, <window,> num_inputs * hidden_units)
