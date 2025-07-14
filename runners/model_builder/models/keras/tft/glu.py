@@ -10,6 +10,7 @@ class GLU(layers.Layer):
         self.dropout_rate = dropout_rate
         self.time_distributed = time_distributed
 
+        self.dropout = layers.Dropout(dropout_rate) if dropout_rate else None
         Dense = layers.TimeDistributed if time_distributed else lambda x: x
         self.dense = Dense(layers.Dense(hidden_units * 2))
 

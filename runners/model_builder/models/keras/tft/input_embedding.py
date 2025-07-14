@@ -53,50 +53,62 @@ class InputEmbedding(layers.Layer):
     def call(self, inputs):
         """
         input: Tensor of shape (batch_size, window, num_inputs)
+
+        Static: Static features
+        Historical: Observed, known and unknown features
+        Future: Known features
         """
-        # Apply the appropriate embedding layer for each input
-        embedded_inputs = []
+
+        batch_size, window_size, _ = inputs.shape
+
+        static_inputs = []
+        historical_inputs = []
+        future_inputs = []
+        
         for i in range(self.num_inputs):
-            output = self.embedding_layers[i](inputs[:, :, i:i+1])
+            # Apply the appropriate embedding layer for each input
+            output = self.embedding_layers[i]( ops.slice(inputs, [0, 0, i], [batch_size, window_size, 1]) ) # inputs[:, :, i:i+1]
             
             if output.ndim == 3:
                 output = ops.expand_dims(output, axis=2)
 
-            embedded_inputs.append(output)  # list of [i](batch_size, window, 1, embedding_dim)
+            # Append to the corresponding feature list
+            if i in self.static_idx:
+                static_inputs.append(output)
 
-        # Static inputs: Keep only first element (repeat it later if needed)
-        if self.static_idx:
-            static_inputs = [embedded_inputs[i][:, 0, :, :] for i in self.static_idx]
-            static_inputs = ops.concatenate(static_inputs, axis=1)  # (batch_size, num_static, embedding_dim)
+            elif i in self.known_idx:
+                historical_inputs.append(output)
+                future_inputs.append(output)
+
+            else: # observed, unknown
+                historical_inputs.append(output)
+
+        
+        if static_inputs:
+            # Keep only first element (repeat it later if needed)
+            static_inputs = ops.slice( # (batch_size, 1, num_static, embedding_dim)
+                ops.concatenate(static_inputs, axis=-2),
+                start_indices=[0, 0, 0, 0],
+                shape=[batch_size, 1, len(self.static_idx), self.embedding_dim]
+            )
+            static_inputs = ops.squeeze(static_inputs, axis=1) # (batch_size, num_static, embedding_dim)
         else:
             static_inputs = None
 
-        # Observed, known and unknown inputs
-        observed_inputs = [embedded_inputs[i] for i in self.observed_idx]
-        observed_inputs = ops.concatenate(observed_inputs, axis=-2) # (batch_size, window, num_observed, embedding_dim)
+        historical_inputs = ops.slice(  # (batch_size, window, num observed + unknown + known, embedding_dim)
+            ops.concatenate(historical_inputs, axis=-2),
+            start_indices=[0, 0, 0, 0],
+            shape=[batch_size, self.historical_window, len(historical_inputs), self.embedding_dim]
+        )
 
-        known_inputs = [embedded_inputs[i] for i in self.known_idx]
-        known_inputs = ops.concatenate(known_inputs, axis=-2) if known_inputs else None # (batch_size, window, num_known, embedding_dim)
-        
-        unknown_inputs = [embedded_inputs[i] for i in self.unknown_idx]
-        unknown_inputs = ops.concatenate(unknown_inputs, axis=-2) if unknown_inputs else None # (batch_size, window, num_unkown, embedding_dim)
-
-
-        # Historical and future inputs
-        historical_inputs = []
-
-        if (unknown_inputs is not None):
-            historical_inputs.append(unknown_inputs[:, :self.historical_window, :, :])
-
-        if (known_inputs is not None):
-            historical_inputs.append(known_inputs[:, :self.historical_window, :, :])
-
-        historical_inputs.append(observed_inputs[:, :self.historical_window, :, :])
-
-        historical_inputs = ops.concatenate(historical_inputs, axis=-2) # (batch_size, historical_window, num_observed + num_known + num_unkown, embedding_dim)
-        
-
-        future_inputs = known_inputs[:, self.historical_window:, :, :] if known_inputs is not None else None # (batch_size, prediction_window, num_unkown, embedding_dim)
+        if future_inputs:
+            future_inputs = ops.slice(  # (batch_size, prediction_window, num known, embedding_dim)
+                ops.concatenate(future_inputs, axis=-2),
+                start_indices=[0, self.historical_window, 0, 0],
+                shape=[batch_size, window_size - self.historical_window, len(self.known_idx), self.embedding_dim]
+            )
+        else:
+            future_inputs = None
 
         return static_inputs, historical_inputs, future_inputs
     
