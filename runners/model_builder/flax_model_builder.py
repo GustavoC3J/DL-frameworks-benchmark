@@ -10,6 +10,7 @@ from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex
+from runners.model_builder.models.flax.tft.tft import TFT
 from utils.jax_utils import accuracy, mae, mse, softmax_cross_entropy
 
 
@@ -173,23 +174,36 @@ class FlaxModelBuilder(ModelBuilder):
 
     def _lstm_complex(self):
         interval = 10
-        window = 48 * 60 // interval
-        
-        lstm_layers = 8
-        initial_cells = 512
-        dropout = 0.4
+        historical_window = 8 * 60 // interval # 8h
+        prediction_window = 1 # Output timesteps
+
+        hidden_units = 64
+        output_size = 1  # Output features (trip count)
+        num_attention_heads = 4
+        dropout_rate = 0.2
         lr = 1e-4
+
+        observed_idx=[10]
+        unknown_idx=[i for i in range(10)]
 
         self.key, init_key = jax.random.split(self.key, num=2)
 
-        model = LSTMComplex(lstm_layers, initial_cells, dropout, self.dtype, self.param_dtype)
-        
+        model = TFT(
+            hidden_units = hidden_units,
+            output_size = output_size,
+            num_attention_heads = num_attention_heads,
+            historical_window=historical_window,
+            prediction_window=prediction_window,
+            observed_idx=observed_idx,
+            unknown_idx=unknown_idx,
+            dropout_rate = dropout_rate
+        )
+
         # Initial state
-        dummy_input = jnp.ones((1, window, 11))
-        variables = model.init(init_key, dummy_input, training=True)
+        dummy_input = jnp.ones((1, historical_window + prediction_window, 11))
+        variables = model.init(init_key, dummy_input, training=False)
 
         params = variables['params']
-        batch_stats = variables['batch_stats']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -199,7 +213,6 @@ class FlaxModelBuilder(ModelBuilder):
             "params": params,
             "optimizer": optimizer,
             "opt_state": opt_state,
-            "batch_stats": batch_stats,
             "loss_fn": mse,
             "metric_fn": mae,
             "metric_name": "mae"

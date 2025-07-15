@@ -23,7 +23,7 @@ class TFT(keras.Model):
         unknown_idx: list=[], # unknown
         categorical_idx: list=[],
         categorical_counts: list=[], # Number of categories for each categorical variable.
-        dropout_rate=0.0,
+        dropout_rate=None,
         **kwargs
     ):
         super().__init__(**kwargs)

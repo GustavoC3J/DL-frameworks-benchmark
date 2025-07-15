@@ -6,7 +6,7 @@ from runners.model_builder.models.keras.tft.gated_residual_network import GatedR
 
 class StaticCovariateEncoder(layers.Layer):
     """StaticCovariateEncoder"""
-    def __init__(self, hidden_dim, dropout_rate):
+    def __init__(self, hidden_dim, dropout_rate=None):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.dropout_rate = dropout_rate
