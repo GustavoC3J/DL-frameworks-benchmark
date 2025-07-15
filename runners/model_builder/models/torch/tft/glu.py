@@ -4,14 +4,14 @@ import torch.nn.functional as F
 
 
 class GLU(nn.Module):
-    def __init__(self, hidden_units, dropout_rate=None, time_distributed=True):
+    def __init__(self, input_dim, hidden_units, dropout_rate=None, time_distributed=True):
         super().__init__()
         self.hidden_units = hidden_units
         self.dropout_rate = dropout_rate
         self.time_distributed = time_distributed
 
         self.dropout = nn.Dropout(dropout_rate) if dropout_rate else nn.Identity()
-        self.dense = nn.Linear(hidden_units, hidden_units * 2)
+        self.dense = nn.Linear(input_dim, hidden_units * 2)
 
     def forward(self, x):
         x = self.dropout(x)

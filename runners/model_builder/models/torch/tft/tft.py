@@ -3,11 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from input_embedding import InputEmbedding
-from gated_residual_network import GatedResidualNetwork
-from glu import GLU
-from static_covariate_encoder import StaticCovariateEncoder
-from variable_selection_network import VariableSelectionNetwork
+from runners.model_builder.models.torch.tft.gated_residual_network import GatedResidualNetwork
+from runners.model_builder.models.torch.tft.glu import GLU
+from runners.model_builder.models.torch.tft.input_embedding import InputEmbedding
+from runners.model_builder.models.torch.tft.static_covariate_encoder import StaticCovariateEncoder
+from runners.model_builder.models.torch.tft.variable_selection_network import VariableSelectionNetwork
+
 
 class TFT(nn.Module):
     def __init__(
@@ -101,18 +102,17 @@ class TFT(nn.Module):
         self.encoder_lstm = nn.LSTM(
             hidden_units,
             hidden_units,
-            batch_first=True,
-            dropout=dropout_rate
+            batch_first=True
         )
 
         self.decoder_lstm = nn.LSTM(
             hidden_units,
             hidden_units,
-            batch_first=True,
-            dropout=dropout_rate
+            batch_first=True
         )
 
         self.glu_lstm = GLU(
+            hidden_units,
             hidden_units,
             dropout_rate=dropout_rate,
             time_distributed=True
@@ -122,6 +122,7 @@ class TFT(nn.Module):
 
         # Context enrichment
         self.grn_enrichment = GatedResidualNetwork(
+            input_dim=hidden_units,
             hidden_units=hidden_units,
             dropout_rate=dropout_rate,
             time_distributed=True
@@ -137,6 +138,7 @@ class TFT(nn.Module):
 
         self.glu_multihead = GLU(
             hidden_units,
+            hidden_units,
             dropout_rate=dropout_rate,
             time_distributed=True
         )
@@ -144,6 +146,7 @@ class TFT(nn.Module):
         self.layer_norm_multihead = nn.LayerNorm(hidden_units)
 
         self.grn_multihead = GatedResidualNetwork(
+            input_dim=hidden_units,
             hidden_units=hidden_units,
             dropout_rate=dropout_rate,
             time_distributed=True
@@ -151,6 +154,7 @@ class TFT(nn.Module):
 
         # Output layer
         self.glu_output = GLU(
+            hidden_units,
             hidden_units,
             time_distributed=True
         )

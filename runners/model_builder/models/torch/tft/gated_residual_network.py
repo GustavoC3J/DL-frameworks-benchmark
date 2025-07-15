@@ -1,12 +1,12 @@
 
 import torch.nn as nn
 import torch.nn.functional as F
-from glu import GLU
+from runners.model_builder.models.torch.tft.glu import GLU
 
 class GatedResidualNetwork(nn.Module):
     """Gated Residual Network (GRN)"""
 
-    def __init__(self, hidden_units, output_size=None, dropout_rate=None, time_distributed=True):
+    def __init__(self, input_dim, hidden_units, output_size=None, dropout_rate=None, time_distributed=True):
         super().__init__()
         self.hidden_units = hidden_units
         self.output_size = output_size if output_size is not None else hidden_units
@@ -14,15 +14,15 @@ class GatedResidualNetwork(nn.Module):
         self.time_distributed = time_distributed
 
         # Projection layer for residual connection (if needed)
-        self.projection = nn.Linear(hidden_units, self.output_size)
+        self.projection = nn.Linear(input_dim, self.output_size)
 
         # Feed-forward layers
-        self.dense1 = nn.Linear(hidden_units, hidden_units)
+        self.dense1 = nn.Linear(input_dim, hidden_units)
         self.context_dense = nn.Linear(hidden_units, hidden_units, bias=False)
         self.dense2 = nn.Linear(hidden_units, hidden_units)
 
         # Gating layer
-        self.glu = GLU(self.output_size, dropout_rate, time_distributed)
+        self.glu = GLU(hidden_units, self.output_size, dropout_rate, time_distributed)
 
         # Normalization
         self.layer_norm = nn.LayerNorm(self.output_size)

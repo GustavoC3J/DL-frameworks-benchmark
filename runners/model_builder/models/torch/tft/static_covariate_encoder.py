@@ -1,6 +1,6 @@
 
 import torch.nn as nn
-from gated_residual_network import GatedResidualNetwork
+from runners.model_builder.models.torch.tft.gated_residual_network import GatedResidualNetwork
 
 class StaticCovariateEncoder(nn.Module):
     """StaticCovariateEncoder"""

@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from gated_residual_network import GatedResidualNetwork
+from runners.model_builder.models.torch.tft.gated_residual_network import GatedResidualNetwork
 
 class VariableSelectionNetwork(nn.Module):
     """Variable Selection Network (VSN)"""
@@ -13,35 +13,34 @@ class VariableSelectionNetwork(nn.Module):
         self.dropout_rate = dropout_rate
         self.time_distributed = time_distributed
 
-        # GRN for each input variable
-        self.grns = nn.ModuleList([
-            GatedResidualNetwork(
-                hidden_units,
-                dropout_rate=dropout_rate,
-                time_distributed=time_distributed
-            )
-            for _ in range(num_inputs)
-        ])
-        
-        self.softmax = nn.Softmax(dim=-1)
-        self.flatten = torch.Reshape( 
-            (-1, num_inputs * hidden_units) if self.time_distributed else \
-            (num_inputs * hidden_units,)
-        )
-
         # Selection GRN to get the weights for variable selection
         self.selection_grn = GatedResidualNetwork(
-            hidden_units,
+            input_dim=num_inputs * hidden_units,
+            hidden_units=hidden_units,
             output_size=num_inputs,  # One for each feature
             dropout_rate=dropout_rate,
             time_distributed=time_distributed
         )
         
-    def forward(self, inputs, context=None):
+        self.softmax = nn.Softmax(dim=-1)
+
+        # GRN for each input variable
+        self.grns = nn.ModuleList([
+            GatedResidualNetwork(
+                input_dim=hidden_units,
+                hidden_units=hidden_units,
+                dropout_rate=dropout_rate,
+                time_distributed=time_distributed
+            )
+            for _ in range(num_inputs)
+        ])
+
+        
+    def forward(self, inputs: torch.Tensor, context=None):
         # inputs: (batch_size, num_inputs, hidden_units) or (batch_size, window, num_inputs, hidden_units)
 
         # Variable selection weights
-        flatten_inputs = self.flatten(inputs)  # (batch_size, <window,> num_inputs * hidden_units)
+        flatten_inputs = inputs.flatten(start_dim=-2)  # (batch_size, <window,> num_inputs * hidden_units)
         weights = self.selection_grn(flatten_inputs, context) # (batch_size, <window,> num_inputs)
         weights = self.softmax(weights)  # (batch_size, <window,> num_inputs)
         weights = weights.unsqueeze(-1)  # (batch_size, <window,> num_inputs, 1)

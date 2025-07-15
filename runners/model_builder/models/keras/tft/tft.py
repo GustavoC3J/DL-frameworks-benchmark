@@ -106,15 +106,13 @@ class TFT(keras.Model):
         self.encoder_lstm = layers.LSTM(
             hidden_units,
             return_sequences=True,
-            return_state=True,
-            dropout=dropout_rate
+            return_state=True
         )
 
         self.decoder_lstm = layers.LSTM(
             hidden_units,
             return_sequences=True,
-            return_state=False,
-            dropout=dropout_rate
+            return_state=False
         )
 
         self.glu_lstm = GLU(

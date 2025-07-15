@@ -125,6 +125,8 @@ class TorchModelBuilder(ModelBuilder):
             dropout_rate = dropout_rate
         )
 
+        model.compile()
+
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
             "loss_fn": nn.MSELoss(),
