@@ -43,6 +43,8 @@ class TFT(keras.Model):
         self.num_historical_inputs = self.num_inputs - self.num_static_inputs
         self.num_future_inputs = len(self.known_idx)
 
+        self.num_attention_heads = num_attention_heads
+        self.categorical_counts = categorical_counts
         self.output_size = output_size
         
         if categorical_idx and not categorical_counts:
@@ -172,7 +174,7 @@ class TFT(keras.Model):
         inputs: Tensor of shape (batch_size, window, num_inputs)
         """
 
-        batch_size = ops.shape(historical_input)[0]
+        batch_size = ops.shape(inputs)[0]
 
         # Apply the embedding layer and split inputs into static, historical, and future
         static_input, historical_input, future_input = self.embedding_layer(inputs)
@@ -246,3 +248,22 @@ class TFT(keras.Model):
         output = output[:, -self.prediction_window:, :]
 
         return output
+    
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "hidden_units": self.hidden_units,
+            "output_size": self.output_size,
+            "num_attention_heads": self.num_attention_heads,
+            "historical_window": self.historical_window,
+            "prediction_window": self.prediction_window,
+            "observed_idx": self.observed_idx,
+            "static_idx": self.static_idx,
+            "known_idx": self.known_idx,
+            "unknown_idx": self.unknown_idx,
+            "categorical_idx": self.categorical_idx,
+            "categorical_counts": self.categorical_counts,
+            "dropout_rate": self.dropout_rate,
+        })
+        return config

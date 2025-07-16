@@ -163,7 +163,7 @@ class TFT(nn.Module):
 
         self.output_layer = nn.Linear(hidden_units, output_size)
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """
         inputs: Tensor of shape (batch_size, window, num_inputs)
         """
@@ -172,7 +172,7 @@ class TFT(nn.Module):
 
         # Apply the embedding layer and split inputs into static, historical, and future
         static_input, historical_input, future_input = self.embedding_layer(inputs)
-
+        
         # 1. Static covariate encoding
         if self.num_static_inputs and static_input is not None:
             static_selected = self.static_vsn(static_input)
@@ -182,7 +182,7 @@ class TFT(nn.Module):
         else:
             # If there are no static inputs, set to None and zeros for context state
             context_var_sel = context_enrichment = None
-            context_state_h = context_state_c = torch.zeros((batch_size, self.hidden_units), device=inputs.device)
+            context_state_h = context_state_c = torch.zeros((batch_size, self.hidden_units), dtype=inputs.dtype, device=inputs.device)
 
         # 2. Variable selection
         historical_features = self.historical_vsn(historical_input, context=context_var_sel)
@@ -190,7 +190,7 @@ class TFT(nn.Module):
         if self.num_future_inputs and future_input is not None:
             future_features = self.future_vsn(future_input, context=context_var_sel)
         else:
-            future_features = torch.zeros((batch_size, self.prediction_window, self.hidden_units), device=inputs.device)
+            future_features = torch.zeros((batch_size, self.prediction_window, self.hidden_units), dtype=inputs.dtype, device=inputs.device)
 
         # 3. LSTM encoder/decoder
         encoder_output, (state_h, state_c) = self.encoder_lstm(
