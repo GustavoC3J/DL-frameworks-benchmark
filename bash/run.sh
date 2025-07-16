@@ -7,6 +7,7 @@ MODEL_COMPLEXITY=$3
 PRECISION=$4
 GPU_IDS=$5
 SEED=$6
+EPOCHS=${7:-100}  # Default epochs if not provided
 
 # Get the library
 LIBRARY=$(echo "$BACKEND" | cut -d'-' -f1)
@@ -38,7 +39,7 @@ if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV
     echo "Environment: $CONDA_ENV"
 
     # Run experiment
-    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpu-ids "$GPU_IDS" --seed "$SEED" --epoch 100
+    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpu-ids "$GPU_IDS" --seed "$SEED" --epoch $EPOCHS
 else
     echo "Error: Couldn't activate conda environment: $CONDA_ENV"
     exit 1

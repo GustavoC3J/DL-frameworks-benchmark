@@ -8,13 +8,14 @@ import numpy as np
 import torch
 from keras.api.callbacks import ModelCheckpoint
 
-from datasets.data_loader_factory import DataLoaderFactory
+from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.gpu_metrics import record_sample
 from utils.metrics_callback import MetricsCallback
 from utils.precision import Precision, get_keras_precision
+from utils.torch_utils import adjust_outputs
 
 
 class TorchRunner(Runner):
@@ -162,7 +163,7 @@ class TorchRunner(Runner):
                         outputs = self.model(batch_x)
 
                         if self.model_type == "lstm":
-                            outputs = outputs.squeeze(1)
+                            outputs = adjust_outputs(outputs, batch_y)
 
                         loss = self.config["loss_fn"](outputs, batch_y)
                         metric = self.config["metric_fn"](outputs, batch_y)
@@ -175,8 +176,9 @@ class TorchRunner(Runner):
                 else:
                     # Get loss and perform updates using the same precision
                     outputs = self.model(batch_x)
+                    
                     if self.model_type == "lstm":
-                        outputs = outputs.squeeze(1)
+                        outputs = adjust_outputs(outputs, batch_y)
 
                     loss = self.config["loss_fn"](outputs, batch_y)
                     metric = self.config["metric_fn"](outputs, batch_y)
@@ -269,7 +271,7 @@ class TorchRunner(Runner):
                         test_outputs = self.model(batch_x)
 
                         if self.model_type == "lstm":
-                            test_outputs = test_outputs.squeeze(1)
+                            test_outputs = adjust_outputs(test_outputs, batch_y)
 
                         loss = self.config["loss_fn"](test_outputs, batch_y)
                         metric = self.config["metric_fn"](test_outputs, batch_y)
@@ -278,7 +280,7 @@ class TorchRunner(Runner):
                     test_outputs = self.model(batch_x)
 
                     if self.model_type == "lstm":
-                        test_outputs = test_outputs.squeeze(1)
+                        test_outputs = adjust_outputs(test_outputs, batch_y)
 
                     loss = self.config["loss_fn"](test_outputs, batch_y)
                     metric = self.config["metric_fn"](test_outputs, batch_y)

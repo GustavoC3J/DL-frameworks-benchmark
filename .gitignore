@@ -1,6 +1,7 @@
 # Exclude datasets but keep the directory
 datasets/*
-!datasets/*.py
+!datasets/loader
+!datasets/download.py
 
 # Exclude results but keep the directory and final results
 results/*

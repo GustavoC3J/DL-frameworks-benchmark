@@ -8,7 +8,7 @@ import traceback
 
 import pandas as pd
 
-from datasets.data_loader import DataLoader
+from datasets.loader.data_loader import DataLoader
 from utils.gpu_metrics import get_gpu_memory_total
 from utils.precision import Precision
 

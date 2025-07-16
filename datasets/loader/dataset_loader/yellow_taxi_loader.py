@@ -1,113 +1,14 @@
 
-import pickle
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-
-class DataLoader():
-
-    def __init__(self, model_type, seed):
-        self.model_type = model_type
-        self.seed = seed
-
-    def load_data(self, dataset_type):
-        if (self.model_type == "mlp"):
-            return self.__load_fashion_mnist(dataset_type)
-        
-        elif (self.model_type == "cnn"):
-            return self.__load_cifar_10(dataset_type)
-        
-        elif (self.model_type == "lstm"):
-            return self.__load_yellow_taxi(dataset_type)
+from datasets.loader.dataset_loader.dataset_loader import DatasetLoader
 
 
-    def __load_fashion_mnist(self, dataset_type):
+class YellowTaxiDatasetLoader(DatasetLoader):
 
-        if (dataset_type == "train"):
-            # Load the training dataset
-            data = pd.read_csv('datasets/fashion-mnist/fashion-mnist_train.csv')
-
-            # Extract labels and pixel values
-            labels = data['label'].values
-            images = data.drop('label', axis=1).values
-
-            # Scale the images between 0 and 1
-            images = images / 255.0
-
-            # Split into training and validation sets (80%-20%)
-            # Returns trainX, validX, trainY, validY 
-            return train_test_split(images, labels, test_size=0.2, stratify=labels, random_state=self.seed)
-
-        else:
-            # Load the test dataset
-            test = pd.read_csv('datasets/fashion-mnist/fashion-mnist_test.csv')
-
-            # Extract labels and pixel values
-            testY = test['label'].values
-            testX = test.drop('label', axis=1).values / 255.0
-
-            return (testX, testY)
-        
-
-    def __load_cifar_10(self, dataset_type):
-
-        def unpickle(file):
-            with open(file, 'rb') as fo:
-                dict = pickle.load(fo, encoding='bytes')
-            return dict
-        
-        def shape_images(img):
-            num_images = img.shape[0]
-            
-            # Split into three channels
-            images = img.reshape(num_images, 3, 1024)
-            
-            # Reshape to image width and height
-            images = images.reshape(num_images, 3, 32, 32)
-            
-            # Change order of channels (num_imagenes, 32, 32, 3)
-            images = images.transpose(0, 2, 3, 1)
-
-            return images
-
-        
-        # Load data
-        path = f"datasets/cifar10/cifar-10-batches-py"
-
-        if (dataset_type == "train"):
-            images = []
-            labels = []
-
-            # Join all files into numpy arrays
-            for i in range(1, 6):
-                batch = unpickle(f"{path}/data_batch_{i}")
-                images.append(batch[b'data'])
-                labels.extend(batch[b'labels'])
-
-            images = np.vstack(images)
-            labels = np.array(labels)
-
-        else:
-            batch = unpickle(f"{path}/test_batch")
-            images = batch[b'data']
-            labels = np.array(batch[b'labels'])
-        
-        # Prepare data
-        images = shape_images(images)
-        images = images / 255.0 # Scale the images between 0 and 1
-
-        if dataset_type == "train":
-            # Split into training and validation sets (80%-20%)
-            # Returns trainX, validX, trainY, validY 
-            return train_test_split(images, labels, test_size=0.2, stratify=labels, random_state=self.seed)
-        else:
-            return images, labels
-        
-
-    def __load_yellow_taxi(self, dataset_type):
-
+    def load(self, dataset_type, split_vars=False, **kwargs):
         interval = 10 # Minutes
         window = 48 * 60 // interval # Number of timesteps
 
@@ -137,13 +38,15 @@ class DataLoader():
             # Shape sets into windows
             trainX, trainY = self.__windows(np.array(train), window)
             valX, valY = self.__windows(np.array(val), window)
-
+            
             return trainX, valX, trainY, valY
         
         else:
             df = pd.DataFrame(self.scaler.transform(df), columns=df.columns)
+            testX, testY = self.__windows(np.array(df), window)
 
-            return self.__windows(np.array(df), window) # testX, testY
+            return testX, testY
+            
 
 
     def __clean(self, df):
@@ -230,4 +133,3 @@ class DataLoader():
             x.append(data[i:i+timesteps])  # Input window
             y.append(data[i+timesteps, -1])  # Next trip count
         return np.array(x), np.array(y)
-

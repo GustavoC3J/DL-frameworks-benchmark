@@ -11,7 +11,7 @@ import orbax.checkpoint
 from flax.training import checkpoints
 from keras.api.callbacks import ModelCheckpoint
 
-from datasets.data_loader_factory import DataLoaderFactory
+from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
@@ -34,9 +34,9 @@ class JaxRunner(Runner):
         self.key = jax.random.key(seed=self.seed)
 
         # Set GPUs
-        if len(self.gpu_ids) != 1:
+        if len(self.gpu_ids) > 1:
             raise NotImplementedError("Multiple GPU training is not implemented")
-        else:
+        elif len(self.gpu_ids) == 1:
             jax.config.update("jax_default_device", jax.devices("gpu")[0])
 
         # Set global floating point precision

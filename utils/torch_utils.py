@@ -30,3 +30,10 @@ def init_layer_weights(layer, kernel_initializer):
         # If bias is present, initialize to zeros
         if layer.bias is not None:
             nn.init.zeros_(layer.bias)
+
+            
+def adjust_outputs(outputs: torch.Tensor, targets: torch.Tensor):
+    if outputs.shape == targets.shape:
+        return outputs
+    else:
+        return outputs.view_as(targets)

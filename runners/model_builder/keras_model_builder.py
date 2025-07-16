@@ -9,6 +9,7 @@ from keras.optimizers import Adam
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.keras.mlp_complex import MLPComplex
 from runners.model_builder.models.keras.cnn_complex import CNNComplex
+from runners.model_builder.models.keras.tft.tft import TFT
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -162,52 +163,36 @@ class KerasModelBuilder(ModelBuilder):
 
     def _lstm_complex(self):
         interval = 10
-        window = 48 * 60 // interval
+        historical_window = 8 * 60 // interval # 8h
+        prediction_window = 1 # Output timesteps
 
-        lstm_layers = 8
-        cells = 512
-        dropout = 0.4
+        hidden_units = 64
+        output_size = 1  # Output features (trip count)
+        num_attention_heads = 4
+        dropout_rate = 0.2
         lr = 1e-4
+
+        observed_idx=[10]
+        unknown_idx=[i for i in range(10)]
         
         # Build the model
-        model = Sequential()
-        model.add(Input(shape=(window, 11))) # Input layer
-
-        # Add the hidden LSTM layers
-        for i in range(1, lstm_layers + 1):
-
-            # From the middle, the cells are halved
-            if (i > (lstm_layers // 2)):
-                cells = cells // 2
-
-            model.add(LSTM(cells, return_sequences = (i < lstm_layers))) # Last LSTM layer doesn't return sequences
-            model.add(BatchNormalization())
-            model.add(Dropout(dropout))
-
-            
-        # Output layer
-        model.add(Dense(256))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(128))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(64))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.1))
-        
-        model.add(Dense(1))
+        model = TFT(
+            hidden_units = hidden_units,
+            output_size = output_size,
+            num_attention_heads = num_attention_heads,
+            historical_window=historical_window,
+            prediction_window=prediction_window,
+            observed_idx=observed_idx,
+            unknown_idx=unknown_idx,
+            dropout_rate = dropout_rate
+        )
 
         # Compile the model
         model.compile(
             optimizer = Adam(learning_rate = lr),             
             loss = 'mse',
-            metrics = ['mae']
+            metrics = ['mae'],
+            jit_compile=True
         )
         
         return model
