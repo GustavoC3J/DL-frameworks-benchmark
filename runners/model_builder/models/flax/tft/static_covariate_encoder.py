@@ -15,11 +15,11 @@ class StaticCovariateEncoder(nn.Module):
 
     hidden_dim: int
     dropout_rate: Optional[float] = None
-    dtype: Dtype | None = None
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs: Array, *, deterministic: bool = True):
+    def __call__(self, inputs: Array, *, training: bool = False):
         """
         inputs: Tensor of shape (batch_size, hidden_size)
         """
@@ -30,7 +30,7 @@ class StaticCovariateEncoder(nn.Module):
             time_distributed=False,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(inputs, deterministic=deterministic)
+        )(inputs, training=training)
 
         c_enrichment = GatedResidualNetwork(
             hidden_units=self.hidden_dim,
@@ -38,7 +38,7 @@ class StaticCovariateEncoder(nn.Module):
             time_distributed=False,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(inputs, deterministic=deterministic)
+        )(inputs, training=training)
 
         c_state_h = GatedResidualNetwork(
             hidden_units=self.hidden_dim,
@@ -46,7 +46,7 @@ class StaticCovariateEncoder(nn.Module):
             time_distributed=False,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(inputs, deterministic=deterministic)
+        )(inputs, training=training)
 
         c_state_c = GatedResidualNetwork(
             hidden_units=self.hidden_dim,
@@ -54,7 +54,7 @@ class StaticCovariateEncoder(nn.Module):
             time_distributed=False,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(inputs, deterministic=deterministic)
+        )(inputs, training=training)
 
         return (
             c_variable_selection,  # Context variable selection 

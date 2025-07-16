@@ -1,5 +1,6 @@
 
-from typing import List
+from dataclasses import field
+from typing import List, Optional
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -18,13 +19,13 @@ class InputEmbedding(nn.Module):
     observed_idx: List[int]
     known_idx: List[int]
     unknown_idx: List[int]
-    categorical_idx: List[int] = []
-    categorical_counts: List[int] = []
-    dtype: Dtype | None = None
+    categorical_idx: List[int] = field(default_factory=list)
+    categorical_counts: List[int] = field(default_factory=list)
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs: Array, *, deterministic: bool = True):
+    def __call__(self, inputs: Array, *, training: bool = False):
         """
         input: Tensor of shape (batch_size, window, num_inputs)
 

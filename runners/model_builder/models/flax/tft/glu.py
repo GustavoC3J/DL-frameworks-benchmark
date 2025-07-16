@@ -10,13 +10,13 @@ class GLU(nn.Module):
     hidden_units: int
     dropout_rate: Optional[float] = None
     time_distributed: bool = True
-    dtype: Dtype | None = None
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs, *, deterministic: bool = True):
+    def __call__(self, inputs, *, training: bool = False):
         # Dropout
-        x = nn.Dropout(rate=self.dropout_rate)(inputs, deterministic=deterministic) if self.dropout_rate else inputs
+        x = nn.Dropout(rate=self.dropout_rate)(inputs, deterministic=not training) if self.dropout_rate else inputs
 
         # Dense layer with 2 * hidden_units
         x = nn.Dense(

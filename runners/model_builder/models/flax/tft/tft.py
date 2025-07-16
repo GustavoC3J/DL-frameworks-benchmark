@@ -1,5 +1,6 @@
 
-from typing import List
+from dataclasses import field
+from typing import List, Optional
 
 import jax.numpy as jnp
 from flax import linen as nn
@@ -25,17 +26,17 @@ class TFT(nn.Module):
     historical_window: int
     prediction_window: int
     observed_idx: List[int]
-    static_idx: List[int] = []
-    known_idx: List[int] = []
-    unknown_idx: List[int] = []
-    categorical_idx: List[int] = []
-    categorical_counts: List[int] = []
-    dropout_rate: float | None = None
-    dtype: Dtype | None = None
+    static_idx: List[int] = field(default_factory=list)
+    known_idx: List[int] = field(default_factory=list)
+    unknown_idx: List[int] = field(default_factory=list)
+    categorical_idx: List[int] = field(default_factory=list)
+    categorical_counts: List[int] = field(default_factory=list)
+    dropout_rate: Optional[float] = None
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs: Array, *, deterministic: bool = True):
+    def __call__(self, inputs: Array, *, training: bool = False):
         """
         inputs: Tensor of shape (batch_size, window, num_inputs)
         """
@@ -62,7 +63,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        static_input, historical_input, future_input = embedding_layer(inputs, deterministic=deterministic)
+        static_input, historical_input, future_input = embedding_layer(inputs, training=training)
 
         # 1. Static covariate encoding
         if num_static_inputs and static_input is not None:
@@ -74,7 +75,7 @@ class TFT(nn.Module):
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )
-            static_selected = static_vsn(static_input, deterministic=deterministic)
+            static_selected = static_vsn(static_input, training=training)
 
             static_encoder = StaticCovariateEncoder(
                 hidden_dim=self.hidden_units,
@@ -82,7 +83,7 @@ class TFT(nn.Module):
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )
-            context_var_sel, context_enrichment, (context_state_h, context_state_c) = static_encoder(static_selected, deterministic=deterministic)
+            context_var_sel, context_enrichment, (context_state_h, context_state_c) = static_encoder(static_selected, training=training)
         else:
             context_var_sel = context_enrichment = None
             context_state_h = context_state_c = jnp.zeros((batch_size, self.hidden_units), dtype=self.dtype or jnp.float32)
@@ -96,7 +97,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        historical_features = historical_vsn(historical_input, context=context_var_sel, deterministic=deterministic)
+        historical_features = historical_vsn(historical_input, context=context_var_sel, training=training)
 
         if num_future_inputs and future_input is not None:
             future_vsn = VariableSelectionNetwork(
@@ -107,7 +108,7 @@ class TFT(nn.Module):
                 dtype=self.dtype,
                 param_dtype=self.param_dtype,
             )
-            future_features = future_vsn(future_input, context=context_var_sel, deterministic=deterministic)
+            future_features = future_vsn(future_input, context=context_var_sel, training=training)
         else:
             future_features = jnp.zeros((batch_size, self.prediction_window, self.hidden_units), dtype=self.dtype or jnp.float32)
 
@@ -122,7 +123,7 @@ class TFT(nn.Module):
         encoder_output, state_h, state_c = encoder_lstm(
             historical_features,
             initial_state=(context_state_h, context_state_c),
-            deterministic=deterministic,
+            training=training,
         )
 
         # Use the last state of the encoder as the initial state for the encoder
@@ -136,7 +137,7 @@ class TFT(nn.Module):
         decoder_output = decoder_lstm(
             future_features,
             initial_state=(state_h, state_c),
-            deterministic=deterministic,
+            training=training,
         )
 
         lstm_layer = jnp.concatenate([encoder_output, decoder_output], axis=1)
@@ -151,7 +152,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        lstm_layer = glu_lstm(lstm_layer, deterministic=deterministic)
+        lstm_layer = glu_lstm(lstm_layer, training=training)
         temporal_feature_layer = lstm_layer + input_embeddings
         temporal_feature_layer = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(temporal_feature_layer)
 
@@ -163,7 +164,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        enriched = grn_enrichment(temporal_feature_layer, context=context_enrichment, deterministic=deterministic)
+        enriched = grn_enrichment(temporal_feature_layer, context=context_enrichment, training=training)
 
         # 5. Self-attention
         attn_output = nn.SelfAttention(
@@ -172,7 +173,7 @@ class TFT(nn.Module):
             dropout_rate=self.dropout_rate,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(enriched, deterministic=deterministic)
+        )(enriched, deterministic=not training)
 
         glu_multihead = GLU(
             hidden_units=self.hidden_units,
@@ -181,7 +182,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        x = glu_multihead(attn_output, deterministic=deterministic)
+        x = glu_multihead(attn_output, training=training)
         x = x + enriched
         x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
 
@@ -192,7 +193,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        decoder = grn_multihead(x, deterministic=deterministic)
+        decoder = grn_multihead(x, training=training)
 
         # 6. Final skip connection and output layer
         glu_output = GLU(
@@ -201,7 +202,7 @@ class TFT(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype,
         )
-        decoder = glu_output(decoder, deterministic=deterministic)
+        decoder = glu_output(decoder, training=training)
         x = decoder + temporal_feature_layer
         transformer_layer = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
 

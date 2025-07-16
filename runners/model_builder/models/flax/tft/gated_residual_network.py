@@ -15,11 +15,11 @@ class GatedResidualNetwork(nn.Module):
     output_size: Optional[int] = None
     dropout_rate: Optional[float] = None
     time_distributed: bool = True
-    dtype: Dtype | None = None
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs, context=None, *, deterministic: bool = True):
+    def __call__(self, inputs, context=None, *, training: bool = False):
         output_size = self.output_size or self.hidden_units
 
         # Residual connection
@@ -62,7 +62,7 @@ class GatedResidualNetwork(nn.Module):
             param_dtype=self.param_dtype,
         )(x)
         if self.dropout_rate:
-            x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
+            x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=not training)
 
         # Gating
         x = GLU(
@@ -71,7 +71,7 @@ class GatedResidualNetwork(nn.Module):
             time_distributed=self.time_distributed,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(x, deterministic=deterministic)
+        )(x, training=training)
 
         # Residual + layer norm
         x = x + residual

@@ -17,11 +17,11 @@ class VariableSelectionNetwork(nn.Module):
     num_inputs: int
     dropout_rate: Optional[float] = None
     time_distributed: bool = True
-    dtype: Dtype | None = None
+    dtype: Optional[Dtype] = None
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, inputs: Array, context=None, *, deterministic: bool = True):
+    def __call__(self, inputs: Array, context=None, *, training: bool = False):
         # inputs: (batch_size, num_inputs, hidden_units) or (batch_size, window, num_inputs, hidden_units)
 
         input_shape = inputs.shape
@@ -39,7 +39,7 @@ class VariableSelectionNetwork(nn.Module):
             time_distributed=self.time_distributed,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-        )(flatten_inputs, context, deterministic=deterministic)  # (batch, <window,> num_inputs)
+        )(flatten_inputs, context, training=training)  # (batch, <window,> num_inputs)
         weights = nn.softmax(weights)  # (batch, <window,> num_inputs)
         weights = jnp.expand_dims(weights, axis=-1)  # (batch, <window,> num_inputs, 1)
 
@@ -57,7 +57,7 @@ class VariableSelectionNetwork(nn.Module):
                     time_distributed=self.time_distributed,
                     dtype=self.dtype,
                     param_dtype=self.param_dtype,
-                )(input_slice, context, deterministic=deterministic)
+                )(input_slice, context, training=training)
             )  # (batch, <window,> 1, hidden_units) * num_inputs
 
         transformed = jnp.concatenate(grn_outputs, axis=-2)  # (batch_size, <window,> num_inputs, hidden_units)

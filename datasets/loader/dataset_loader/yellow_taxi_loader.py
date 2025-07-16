@@ -9,7 +9,6 @@ from datasets.loader.dataset_loader.dataset_loader import DatasetLoader
 class YellowTaxiDatasetLoader(DatasetLoader):
 
     def load(self, dataset_type, split_vars=False, **kwargs):
-
         interval = 10 # Minutes
         window = 48 * 60 // interval # Number of timesteps
 
@@ -39,10 +38,6 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             # Shape sets into windows
             trainX, trainY = self.__windows(np.array(train), window)
             valX, valY = self.__windows(np.array(val), window)
-
-            if split_vars:
-                trainX = self.__split_vars(trainX)
-                valX = self.__split_vars(valX)
             
             return trainX, valX, trainY, valY
         
@@ -50,7 +45,7 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             df = pd.DataFrame(self.scaler.transform(df), columns=df.columns)
             testX, testY = self.__windows(np.array(df), window)
 
-            return (self.__split_vars(testX) if split_vars else testX), testY
+            return testX, testY
             
 
 
