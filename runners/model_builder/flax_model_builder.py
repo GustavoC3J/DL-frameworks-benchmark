@@ -6,7 +6,6 @@ import optax
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.flax.cnn_complex import CNNComplex
 from runners.model_builder.models.flax.cnn_simple import CNNSimple
-from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex

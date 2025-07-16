@@ -1,51 +1,7 @@
 
-from typing import Any
-
 import flax.linen as nn
-import jax
 import jax.numpy as jnp
 
-"""
-class LSTMSimple(nn.Module):
-    cells: int
-    dropout: str
-
-    def setup(self):
-        self.lstm1 = nn.RNN(nn.OptimizedLSTMCell(self.cells))
-        self.batchnorm1 = nn.BatchNorm()
-        self.dropout1 = nn.Dropout(self.dropout)
-        
-        self.lstm2 = nn.RNN(nn.OptimizedLSTMCell(self.cells))
-        self.batchnorm2 = nn.BatchNorm()
-        self.dropout2 = nn.Dropout(self.dropout)
-
-        self.dense = nn.Dense(16)
-        self.batchnorm3 = nn.BatchNorm()
-        self.dropout3 = nn.Dropout(self.dropout)
-
-        self.output = nn.Dense(1)
-
-    def __call__(self, x, deterministic=False):
-
-        x = self.lstm1(x)
-        x = self.batchnorm1(x, use_running_average=deterministic)
-        x = self.dropout1(x, deterministic=deterministic)
-        
-        x = self.lstm2(x)
-        x = x[:, -1, :] # Keep only the last element of the window
-        x = self.batchnorm2(x, use_running_average=deterministic)
-        x = self.dropout2(x, deterministic=deterministic)
-        
-        x = self.dense(x)
-        x = self.batchnorm3(x, use_running_average=deterministic)
-        x = nn.tanh(x)
-        x = self.dropout3(x, deterministic=deterministic)
-
-        # Output (trip count)
-        x = self.output(x)
-        
-        return x
-"""
 class LSTMSimple(nn.Module):
     cells: int
     dropout: str

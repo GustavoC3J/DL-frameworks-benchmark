@@ -50,6 +50,6 @@ class LSTM(nn.Module):
         elif self.return_sequences:
             return outputs
         elif self.return_state:
-            return last_h, last_c
+            return outputs[:, -1, :], last_h, last_c
         else:
-            return outputs
+            return outputs[:, -1, :]
