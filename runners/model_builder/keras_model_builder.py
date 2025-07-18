@@ -1,5 +1,5 @@
 
-
+from keras import layers
 from keras.layers import (LSTM, BatchNormalization, Conv2D,
                           Dense, Dropout, Flatten,
                           Input, MaxPooling2D, Activation)
@@ -176,16 +176,19 @@ class KerasModelBuilder(ModelBuilder):
         unknown_idx=[i for i in range(10)]
         
         # Build the model
-        model = TFT(
-            hidden_units = hidden_units,
-            output_size = output_size,
-            num_attention_heads = num_attention_heads,
-            historical_window=historical_window,
-            prediction_window=prediction_window,
-            observed_idx=observed_idx,
-            unknown_idx=unknown_idx,
-            dropout_rate = dropout_rate
-        )
+        model = Sequential([
+            TFT(
+                hidden_units = hidden_units,
+                output_size = output_size,
+                num_attention_heads = num_attention_heads,
+                historical_window=historical_window,
+                prediction_window=prediction_window,
+                observed_idx=observed_idx,
+                unknown_idx=unknown_idx,
+                dropout_rate = dropout_rate
+            ),
+            layers.Flatten() # Outputs from (batch_size, 1, 1) to (batch_size, 1)
+        ])
 
         # Compile the model
         model.compile(

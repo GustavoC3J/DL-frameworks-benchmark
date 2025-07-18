@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import optax
 
 from runners.model_builder.model_builder import ModelBuilder
+from runners.model_builder.models.flax.LSTMComplex import LSTMComplex
 from runners.model_builder.models.flax.cnn_complex import CNNComplex
 from runners.model_builder.models.flax.cnn_simple import CNNSimple
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
@@ -197,7 +198,7 @@ class FlaxModelBuilder(ModelBuilder):
 
         self.key, init_key = jax.random.split(self.key, num=2)
 
-        model = TFT(
+        model = LSTMComplex(
             hidden_units = hidden_units,
             output_size = output_size,
             num_attention_heads = num_attention_heads,
