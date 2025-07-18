@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "experiment.py", line 167, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 57, in run_experiment
+    train_results, train_samples = runner.train(*formatted_data, output_directory)
+  File "torch_runner.py", line 240, in train
+    return train_fn(train_dl, val_dl, path)
+  File "torch_runner.py", line 178, in __torch_train
+    outputs = self.model(batch_x)
+  File "module.py", line 1737, in _wrapped_call_impl
+    return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+  File "eval_frame.py", line 574, in _fn
+    return fn(*args, **kwargs)
+  File "module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "tft.py", line 196, in forward
+    encoder_output, (state_h, state_c) = self.encoder_lstm(
+  File "module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "rnn.py", line 1124, in forward
+    result = _VF.lstm(
+RuntimeError: expected mat1 and mat2 to have the same dtype, but got: float != c10::BFloat16
