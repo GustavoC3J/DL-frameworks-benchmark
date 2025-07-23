@@ -15,9 +15,7 @@ from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
-from utils.gpu_metrics import record_sample
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
-from utils.metrics_callback import MetricsCallback
 from utils.precision import Precision, get_keras_precision
 
 
@@ -102,7 +100,6 @@ class JaxRunner(Runner):
 
         checkpoint_filepath = path + "/model.keras"
         callbacks = [
-            MetricsCallback(self.gpu_ids),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 monitor="val_loss",
@@ -122,7 +119,7 @@ class JaxRunner(Runner):
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
     
-        return history.history, callbacks[0].samples_logs
+        return history.history
 
 
     def __jax_train(self, train_dl, val_dl, path):
@@ -139,10 +136,6 @@ class JaxRunner(Runner):
             f"val_{metric_name}": [],
             "epoch_time": []
         }
-
-        samples_logs = []
-
-        num_batches = len(train_dl)
 
         train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
 
@@ -165,21 +158,12 @@ class JaxRunner(Runner):
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
-                # Check if a sample should be obtained
-                samples_per_epoch = 4
-                batches_per_sample = max(1, num_batches // samples_per_epoch)
-        
-                if (i != 0) and (i % batches_per_sample == 0):
-                    sample = record_sample(start_time, self.gpu_ids)
-                    sample["epoch"] = epoch
-                    samples_logs.append(sample)
 
             # Validation
-            val_logs, val_samples_logs = self.__jax_evaluate(val_dl, start_time)
+            val_logs = self.__jax_evaluate(val_dl, start_time)
 
             val_loss = val_logs["loss"]
             val_metric = val_logs[metric_name]
-            samples_logs.extend(val_samples_logs)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -206,7 +190,7 @@ class JaxRunner(Runner):
             orbax_checkpointer=orbax.checkpoint.PyTreeCheckpointer()
         )
         
-        return history, samples_logs
+        return history
     
     def train(self, trainX, validX, trainY, validY, path):
         train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
@@ -216,11 +200,7 @@ class JaxRunner(Runner):
 
 
     def __keras_evaluate(self, test_dl):
-        callback = MetricsCallback(self.gpu_ids)
-
-        self.model.evaluate(test_dl, callbacks=[callback])
-
-        return callback.test_logs, callback.samples_logs
+        return self.model.evaluate(test_dl)
     
 
     def __jax_evaluate(self, test_dl, training_start_time = None):
@@ -228,7 +208,6 @@ class JaxRunner(Runner):
         test_loss = 0
         test_metric = 0
         num_batches = len(test_dl)
-        samples_logs = []
         
         eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
         
@@ -238,17 +217,6 @@ class JaxRunner(Runner):
 
             test_loss += loss
             test_metric += metric
-
-            # Check if a sample should be obtained
-            samples_per_epoch = 4
-            batches_per_sample = max(1, num_batches // samples_per_epoch)
-    
-            if (i != 0) and (i % batches_per_sample == 0):
-                sample = record_sample(
-                    start_time if training_start_time is None else training_start_time,
-                    self.gpu_ids
-                )
-                samples_logs.append(sample)
 
         # Calculate mean
         test_loss /= num_batches
@@ -264,7 +232,7 @@ class JaxRunner(Runner):
         if training_start_time is None:
             print(f"Loss: {test_loss.item():.4f} - {self.config['metric_name']}: {test_metric.item():.4f}")
 
-        return test_logs, samples_logs
+        return test_logs
 
     
     def evaluate(self, testX, testY):

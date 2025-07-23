@@ -12,8 +12,6 @@ from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
-from utils.gpu_metrics import record_sample
-from utils.metrics_callback import MetricsCallback
 from utils.precision import Precision, get_keras_precision
 from utils.torch_utils import adjust_outputs
 
@@ -95,7 +93,6 @@ class TorchRunner(Runner):
 
         checkpoint_filepath = path + "/model.keras"
         callbacks = [
-            MetricsCallback(self.gpu_ids),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 monitor="val_loss",
@@ -116,14 +113,12 @@ class TorchRunner(Runner):
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
     
-        return history.history, callbacks[0].samples_logs
+        return history.history
     
 
     def __torch_train(self, train_dl, val_dl, path):
         
-        num_batches = len(train_dl)
         metric_name = self.config["metric_name"]
-        samples_logs = []
         best_model_weights = None
         best_val_loss = float('inf')
         best_epoch = 0
@@ -190,21 +185,11 @@ class TorchRunner(Runner):
                 train_losses.append(loss.item())
                 train_metrics.append(metric)
 
-                # Check if a sample should be obtained
-                samples_per_epoch = 4
-                batches_per_sample = max(1, num_batches // samples_per_epoch)
-        
-                if (i != 0) and (i % batches_per_sample == 0):
-                    sample = record_sample(start_time, self.gpu_ids)
-                    sample["epoch"] = epoch
-                    samples_logs.append(sample)
-
             # Validation
-            val_logs, val_samples_logs = self.__torch_evaluate(val_dl, start_time)
+            val_logs = self.__torch_evaluate(val_dl, start_time)
 
             val_loss = val_logs["loss"]
             val_metric = val_logs[metric_name]
-            samples_logs.extend(val_samples_logs)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -228,7 +213,7 @@ class TorchRunner(Runner):
 
         torch.save(self.model.state_dict(), path + f'/{best_epoch:02d}_model.pt')
         
-        return history, samples_logs
+        return history
 
 
     def train(self, trainX, validX, trainY, validY, path):
@@ -241,19 +226,13 @@ class TorchRunner(Runner):
 
 
     def __keras_evaluate(self, test_dl):
-        callback = MetricsCallback(self.gpu_ids)
-
-        self.model.evaluate(test_dl, callbacks=[callback])
-
-        return callback.test_logs, callback.samples_logs
+        return self.model.evaluate(test_dl)
     
 
     def __torch_evaluate(self, test_dl, training_start_time = None):
 
         losses = []
         metrics = []
-        num_batches = len(test_dl)
-        samples_logs = []
 
         # Set evaluation mode
         self.model.eval()
@@ -288,17 +267,6 @@ class TorchRunner(Runner):
                 losses.append(loss.item())
                 metrics.append(metric)
 
-                # Check if a sample should be obtained
-                samples_per_epoch = 4
-                batches_per_sample = max(1, num_batches // samples_per_epoch)
-        
-                if (i != 0) and (i % batches_per_sample == 0):
-                    sample = record_sample(
-                        start_time if training_start_time is None else training_start_time,
-                        self.gpu_ids
-                    )
-                    samples_logs.append(sample)
-
         # Calculate mean
         test_loss = np.mean(np.array(losses))
         test_metric = np.mean(np.array(metrics))
@@ -313,7 +281,7 @@ class TorchRunner(Runner):
             "epoch_time": time.time() - start_time
         }
 
-        return test_logs, samples_logs
+        return test_logs
 
 
     
