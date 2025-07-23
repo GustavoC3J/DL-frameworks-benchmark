@@ -34,11 +34,11 @@ if [[ "$LIBRARY" != "tf" ]]; then
 fi
 
 # Load conda and environment 
-if source "/frontend/gustcort/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
+if source "$HOME/miniconda3/etc/profile.d/conda.sh" && conda activate $CONDA_ENV; then
     echo "Environment: $CONDA_ENV"
 
     # Run experiment
-    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpu-ids "$GPU_IDS" --seed "$SEED" --epochs 100
+    python experiment.py "$BACKEND" "$MODEL_TYPE" "$MODEL_COMPLEXITY" "$PRECISION" --gpu-ids "$GPU_IDS" --seed "$SEED"
 else
     echo "Error: Couldn't activate conda environment: $CONDA_ENV"
     exit 1
