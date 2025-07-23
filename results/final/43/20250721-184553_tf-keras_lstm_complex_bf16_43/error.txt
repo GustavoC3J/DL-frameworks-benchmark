@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "experiment.py", line 167, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 57, in run_experiment
+    train_results, train_samples = runner.train(*formatted_data, output_directory)
+  File "tf_runner.py", line 60, in train
+    history = self.model.fit(
+  File "traceback_utils.py", line 122, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "operation.py", line 80, in compute_output_spec
+    new_e = e.__class__(
+TypeError: Exception encountered when calling TFT.call().
+
+[1m__init__() missing 2 required positional arguments: 'op' and 'message'[0m
+
+Arguments received by TFT.call():
+  • args=('<KerasTensor shape=(None, 288, 11), dtype=bfloat16, sparse=False, name=keras_tensor>',)
+  • kwargs=<class 'inspect._empty'>

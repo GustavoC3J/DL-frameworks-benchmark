@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "experiment.py", line 167, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 57, in run_experiment
+    train_results, train_samples = runner.train(*formatted_data, output_directory)
+  File "jax_runner.py", line 215, in train
+    return self.__keras_train(train_dl, val_dl, path) if self.keras else self.__jax_train(train_dl, val_dl, path)
+  File "jax_runner.py", line 114, in __keras_train
+    history = self.model.fit(
+  File "traceback_utils.py", line 122, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "trainer.py", line 1091, in _symbolic_build
+    raise RuntimeError(
+RuntimeError: Unable to automatically build the model. Please build it yourself before calling fit/evaluate/predict. A model is 'built' when its variables have been created and its `self.built` attribute is True. Usually, calling the model on a batch of data is the right way to build it.
+Exception encountered:
+'Unsupported dtype dtype(bfloat16)'
