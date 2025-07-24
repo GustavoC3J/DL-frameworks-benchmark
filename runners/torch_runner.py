@@ -13,6 +13,7 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.precision import Precision, get_keras_precision
+from utils.time_callback import TimeCallback
 from utils.torch_utils import adjust_outputs
 
 
@@ -98,7 +99,8 @@ class TorchRunner(Runner):
                 monitor="val_loss",
                 mode="min",
                 save_best_only=True
-            )
+            ),
+            TimeCallback()
         ]
         
         # Train the model
@@ -112,6 +114,9 @@ class TorchRunner(Runner):
         # Load best model
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
+
+        # Add epoch times
+        history.history["epoch_time"] = callbacks[1].times
     
         return history.history
     

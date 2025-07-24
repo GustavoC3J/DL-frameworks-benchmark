@@ -8,6 +8,7 @@ from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.precision import get_keras_precision
+from utils.time_callback import TimeCallback
 
 
 class TFRunner(Runner):
@@ -51,7 +52,8 @@ class TFRunner(Runner):
                 monitor="val_loss",
                 mode="min",
                 save_best_only=True
-            )
+            ),
+            TimeCallback()
         ]
         
         # Train the model
@@ -65,6 +67,9 @@ class TFRunner(Runner):
         # Load best model
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
+            
+        # Add epoch times
+        history.history["epoch_time"] = callbacks[1].times
     
         return history.history
 

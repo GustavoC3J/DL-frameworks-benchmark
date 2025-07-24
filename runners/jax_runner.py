@@ -17,6 +17,7 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
 from utils.precision import Precision, get_keras_precision
+from utils.time_callback import TimeCallback
 
 
 class JaxRunner(Runner):
@@ -105,7 +106,8 @@ class JaxRunner(Runner):
                 monitor="val_loss",
                 mode="min",
                 save_best_only=True
-            )
+            ),
+            TimeCallback()
         ]
         
         history = self.model.fit(
@@ -118,6 +120,9 @@ class JaxRunner(Runner):
         # Load best model
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
+
+        # Add epoch times
+        history.history["epoch_time"] = callbacks[1].times
     
         return history.history
 

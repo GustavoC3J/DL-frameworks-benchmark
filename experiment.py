@@ -102,9 +102,9 @@ def run_experiment(runner, params, output_directory):
 
     pd.DataFrame(train_results).to_csv(train_results_filepath, index_label="epoch")
     pd.DataFrame({
-        "loss": test_results[0],
-        "metric": test_results[1],
-        "time": testing_time
+        "loss": [test_results[0]],
+        "metric": [test_results[1]],
+        "time": [testing_time]
     }).to_csv(test_results_filepath, index=False)
 
 
