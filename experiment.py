@@ -27,6 +27,7 @@ def parse_params():
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu-ids", type=str, default="2")
+    parser.add_argument("--interval", type=float, default=1)
 
     return parser.parse_args()
 
@@ -43,7 +44,7 @@ def run_experiment(runner, params, output_directory):
 
     # Perform the experiment
 
-    monitor = GPUMonitor(params.gpu_ids, interval=0.5)
+    monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
     
     # Define and build the model
     start = time.time()
@@ -60,8 +61,8 @@ def run_experiment(runner, params, output_directory):
 
     train_results = runner.train(*formatted_data, output_directory)
 
-    training_time = time.time() - start
     monitor.stop()
+    training_time = time.time() - start
 
 
     # Start testing
@@ -72,8 +73,8 @@ def run_experiment(runner, params, output_directory):
 
     test_results = runner.evaluate(*formatted_data)
 
-    testing_time = time.time() - start
     monitor.stop()
+    testing_time = time.time() - start
 
 
     # Get memory of all GPUs

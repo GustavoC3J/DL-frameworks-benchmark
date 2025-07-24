@@ -149,7 +149,7 @@ class TorchRunner(Runner):
             # Set training mode
             self.model.train()
             
-            for i, (batch_x, batch_y) in enumerate(train_dl):
+            for batch_x, batch_y in train_dl:
                 # Send data to GPU and set dtype
                 # If output has to be an integer, then batch_y dtype is not modified
                 batch_x = batch_x.to(device=self.device, dtype=self.dtype)
@@ -191,10 +191,7 @@ class TorchRunner(Runner):
                 train_metrics.append(metric)
 
             # Validation
-            val_logs = self.__torch_evaluate(val_dl, start_time)
-
-            val_loss = val_logs["loss"]
-            val_metric = val_logs[metric_name]
+            val_loss, val_metric, _ = self.__torch_evaluate(val_dl, True)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -234,7 +231,7 @@ class TorchRunner(Runner):
         return self.model.evaluate(test_dl)
     
 
-    def __torch_evaluate(self, test_dl, training_start_time = None):
+    def __torch_evaluate(self, test_dl, val = False):
 
         losses = []
         metrics = []
@@ -245,7 +242,7 @@ class TorchRunner(Runner):
         start_time = time.time()
 
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(test_dl):
+            for batch_x, batch_y in test_dl:
                 # Send data to GPU
                 batch_x = batch_x.to(device=self.device, dtype=self.dtype)
                 batch_y = batch_y.to(device=self.device, dtype=torch.long if batch_y.dtype == torch.long else self.dtype)
@@ -277,16 +274,14 @@ class TorchRunner(Runner):
         test_metric = np.mean(np.array(metrics))
     
         # Print log message if it is test
-        if training_start_time is None:
+        if not val:
             print(f"Loss: {test_loss:.4f} - {self.config['metric_name']}: {test_metric:.4f}")
 
-        test_logs = {
-            "loss": test_loss,
-            self.config['metric_name']: test_metric,
-            "epoch_time": time.time() - start_time
-        }
-
-        return test_logs
+        return (
+            test_loss,
+            test_metric,
+            time.time() - start_time
+        )
 
 
     

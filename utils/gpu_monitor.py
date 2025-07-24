@@ -12,7 +12,7 @@ class GPUMonitor:
     Uses NVIDIA's NVML library to access GPU metrics.
     """
 
-    def __init__(self, gpu_indices=None, interval=0.5):
+    def __init__(self, gpu_indices=None, interval=1):
         """
         gpu_indices: GPU index list to monitor (None = all)
         interval: seconds between samples
@@ -24,6 +24,7 @@ class GPUMonitor:
         self._stop_event = threading.Event()
         self._thread = None
         self._start_time = None
+        self._handles = None
 
 
     def _init_nvml(self):
@@ -104,9 +105,7 @@ class GPUMonitor:
         Returns a dictionary with the total memory (in MiB) of each monitored GPU.
         """
 
-        initialized = hasattr(self, '_handles')
-        if not initialized:
-            self._init_nvml()
+        self._init_nvml()
 
         total_mem = {}
         for idx, handle in zip(self._monitor_indices, self._handles):
@@ -116,7 +115,6 @@ class GPUMonitor:
             except NVMLError as e:
                 raise NVMLError(f"Error reading GPU-{idx}'s total memory: {e}")
 
-        if not initialized:
-            nvmlShutdown()
+        nvmlShutdown()
 
         return total_mem

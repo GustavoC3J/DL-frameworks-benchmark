@@ -153,7 +153,7 @@ class JaxRunner(Runner):
             train_losses = []
             train_metrics = []
             
-            for i, (batch_x, batch_y) in enumerate(train_dl):
+            for batch_x, batch_y in train_dl:
                 # Parse data into JAX arrays
                 batch_x = jnp.array(batch_x)
                 batch_y = jnp.array(batch_y)
@@ -165,10 +165,7 @@ class JaxRunner(Runner):
 
 
             # Validation
-            val_logs = self.__jax_evaluate(val_dl, start_time)
-
-            val_loss = val_logs["loss"]
-            val_metric = val_logs[metric_name]
+            val_loss, val_metric, _ = self.__jax_evaluate(val_dl, True)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -208,7 +205,7 @@ class JaxRunner(Runner):
         return self.model.evaluate(test_dl)
     
 
-    def __jax_evaluate(self, test_dl, training_start_time = None):
+    def __jax_evaluate(self, test_dl, val = False):
 
         test_loss = 0
         test_metric = 0
@@ -217,7 +214,7 @@ class JaxRunner(Runner):
         eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
         
         start_time = time.time()
-        for i, (batch_x, batch_y) in enumerate(test_dl):
+        for batch_x, batch_y in test_dl:
             loss, metric = eval_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)))
 
             test_loss += loss
@@ -227,17 +224,15 @@ class JaxRunner(Runner):
         test_loss /= num_batches
         test_metric /= num_batches
         
-        test_logs = {
-            "loss": test_loss.item(),
-            self.config['metric_name']: test_metric.item(),
-            "epoch_time": time.time() - start_time
-        }
-        
         # Print log message if it is test
-        if training_start_time is None:
+        if not val:
             print(f"Loss: {test_loss.item():.4f} - {self.config['metric_name']}: {test_metric.item():.4f}")
 
-        return test_logs
+        return (
+            test_loss.item(),
+            test_metric.item(),
+            time.time() - start_time
+        )
 
     
     def evaluate(self, testX, testY):
