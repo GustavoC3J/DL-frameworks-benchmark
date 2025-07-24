@@ -1,2 +1,0 @@
-backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
-jax-keras,mlp,complex,bf16,100,64,44,2,0.03336453437805176,331.18879294395447,5.936744689941406,81920.0

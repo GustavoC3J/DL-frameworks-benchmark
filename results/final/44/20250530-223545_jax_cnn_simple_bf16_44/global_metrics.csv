@@ -1,2 +1,0 @@
-backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
-jax,cnn,simple,bf16,100,64,44,2,3.392570972442627,460.2588872909546,1.65382719039917,81920.0
