@@ -7,8 +7,8 @@ from keras.api.callbacks import ModelCheckpoint
 from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
-from utils.metrics_callback import MetricsCallback
 from utils.precision import get_keras_precision
+from utils.time_callback import TimeCallback
 
 
 class TFRunner(Runner):
@@ -47,13 +47,13 @@ class TFRunner(Runner):
 
         checkpoint_filepath = path + "/model.keras"
         callbacks = [
-            MetricsCallback(self.gpu_ids),
             ModelCheckpoint(
                 filepath=checkpoint_filepath,
                 monitor="val_loss",
                 mode="min",
                 save_best_only=True
-            )
+            ),
+            TimeCallback()
         ]
         
         # Train the model
@@ -67,18 +67,17 @@ class TFRunner(Runner):
         # Load best model
         if os.path.exists(checkpoint_filepath):
             self.model = keras.models.load_model(checkpoint_filepath)
+            
+        # Add epoch times
+        history.history["epoch_time"] = callbacks[1].times
     
-        return history.history, callbacks[0].samples_logs
+        return history.history
 
 
     def evaluate(self, testX, testY):
         test_dl = self.dl_factory.fromNumpy(testX, testY, self.batch_size, shuffle=False)
         
-        callback = MetricsCallback(self.gpu_ids)
-
-        self.model.evaluate(test_dl, callbacks=[callback])
-
-        return callback.test_logs, callback.samples_logs
+        return self.model.evaluate(test_dl)
 
 
 

@@ -9,7 +9,7 @@ import traceback
 import pandas as pd
 
 from datasets.loader.data_loader import DataLoader
-from utils.gpu_metrics import get_gpu_memory_total
+from utils.gpu_monitor import GPUMonitor
 from utils.precision import Precision
 
 
@@ -42,6 +42,8 @@ def run_experiment(runner, params, output_directory):
 
 
     # Perform the experiment
+
+    monitor = GPUMonitor(params.gpu_ids, interval=0.5)
     
     # Define and build the model
     start = time.time()
@@ -54,19 +56,30 @@ def run_experiment(runner, params, output_directory):
 
     # Start training
     start = time.time()
-    train_results, train_samples = runner.train(*formatted_data, output_directory)
+    monitor.start(train_samples_filepath, start)
+
+    train_results = runner.train(*formatted_data, output_directory)
+
     training_time = time.time() - start
+    monitor.stop()
+
 
     # Start testing
     formatted_data = data_loader.load_data("test")
+    
     start = time.time()
-    test_results, test_samples = runner.evaluate(*formatted_data)
+    monitor.start(test_samples_filepath, start)
+
+    test_results = runner.evaluate(*formatted_data)
+
     testing_time = time.time() - start
+    monitor.stop()
+
 
     # Get memory of all GPUs
-    gpu_indices = [int(gpu) for gpu in params.gpu_ids.split(",") if gpu.isdigit()]
     gpu_memory_total = {
-        f"gpu_{gpu['index']}_memory_total": gpu['memory_total'] for gpu in get_gpu_memory_total(gpu_indices)
+        f"gpu_{idx}_memory_total": mem_total
+        for idx, mem_total in monitor.get_total_memory().items()
     }
 
     global_metrics = pd.DataFrame([{  
@@ -88,10 +101,11 @@ def run_experiment(runner, params, output_directory):
     global_metrics.to_csv(global_metrics_filepath, index=False)
 
     pd.DataFrame(train_results).to_csv(train_results_filepath, index_label="epoch")
-    pd.DataFrame(train_samples).to_csv(train_samples_filepath, index=False)
-
-    pd.DataFrame([test_results]).to_csv(test_results_filepath, index=False)
-    pd.DataFrame(test_samples).to_csv(test_samples_filepath, index=False)
+    pd.DataFrame({
+        "loss": [test_results[0]],
+        "metric": [test_results[1]],
+        "time": [testing_time]
+    }).to_csv(test_results_filepath, index=False)
 
 
 
