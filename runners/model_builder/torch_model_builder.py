@@ -4,12 +4,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from runners.model_builder.model_builder import ModelBuilder
-from runners.model_builder.models.torch.CNNComplex import CNNComplex
-from runners.model_builder.models.torch.CNNSimple import CNNSimple
-from runners.model_builder.models.torch.LSTMSimple import LSTMSimple
-from runners.model_builder.models.torch.MLPComplex import MLPComplex
-from runners.model_builder.models.torch.MLPSimple import MLPSimple
-from runners.model_builder.models.torch.tft.tft import TFT
+from runners.model_builder.models.torch.cnn_complex import CNNComplex
+from runners.model_builder.models.torch.cnn_simple import CNNSimple
+from runners.model_builder.models.torch.lstm_complex import LSTMComplex
+from runners.model_builder.models.torch.lstm_simple import LSTMSimple
+from runners.model_builder.models.torch.mlp_complex import MLPComplex
+from runners.model_builder.models.torch.mlp_simple import MLPSimple
 from utils.torch_utils import accuracy, mae
 
 
@@ -109,31 +109,12 @@ class TorchModelBuilder(ModelBuilder):
         return model, config
 
     def _lstm_complex(self):
-        interval = 10
-        historical_window = 8 * 60 // interval # 8h
-        prediction_window = 1 # Output timesteps
-
-        hidden_units = 64
-        output_size = 1  # Output features (trip count)
-        num_attention_heads = 4
-        dropout_rate = 0.2
+        lstm_layers = 8
+        initial_cells = 512
+        dropout = 0.4
         lr = 1e-4
 
-        observed_idx=[10]
-        unknown_idx=[i for i in range(10)]
-
-        model = TFT(
-            hidden_units = hidden_units,
-            output_size = output_size,
-            num_attention_heads = num_attention_heads,
-            historical_window=historical_window,
-            prediction_window=prediction_window,
-            observed_idx=observed_idx,
-            unknown_idx=unknown_idx,
-            dropout_rate = dropout_rate
-        )
-
-        model.compile()
+        model = LSTMComplex(lstm_layers, initial_cells, dropout)
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),

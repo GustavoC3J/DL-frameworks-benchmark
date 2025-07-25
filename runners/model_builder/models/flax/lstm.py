@@ -45,11 +45,8 @@ class LSTM(nn.Module):
             length=x.shape[1],
         )(lstm_cell, initial_state, x)
 
-        if self.return_sequences and self.return_state:
-            return outputs, last_h, last_c
-        elif self.return_sequences:
-            return outputs
-        elif self.return_state:
-            return outputs[:, -1, :], last_h, last_c
-        else:
-            return outputs[:, -1, :]
+        # Return only the last temporal output if not returning sequences
+        if not self.return_sequences:
+            outputs = outputs[:, -1, :]
+
+        return outputs, last_h, last_c if self.return_state else outputs
