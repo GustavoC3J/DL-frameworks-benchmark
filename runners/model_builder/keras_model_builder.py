@@ -1,14 +1,13 @@
 
-from keras import layers
-from keras.layers import (LSTM, BatchNormalization, Conv2D,
-                          Dense, Dropout, Flatten,
-                          Input, MaxPooling2D, Activation)
-from keras.models import Sequential
 from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
-from runners.model_builder.models.keras.mlp_complex import MLPComplex
 from runners.model_builder.models.keras.cnn_complex import CNNComplex
+from runners.model_builder.models.keras.cnn_simple import cnn_simple
+from runners.model_builder.models.keras.lstm_complex import lstm_complex
+from runners.model_builder.models.keras.lstm_simple import lstm_simple
+from runners.model_builder.models.keras.mlp_complex import MLPComplex
+from runners.model_builder.models.keras.mlp_simple import mlp_simple
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -18,21 +17,7 @@ class KerasModelBuilder(ModelBuilder):
         dropout = 0.2
         lr = 1e-4
         
-        model = Sequential()
-        
-        # Input layer
-        model.add(Input(shape=(784,)))
-
-        # Hidden layer 1
-        model.add(Dense(256, activation=activation))
-        model.add(Dropout(dropout))
-
-        # Hidden layer 2
-        model.add(Dense(128, activation=activation))
-        model.add(Dropout(dropout))
-        
-        # Output layer
-        model.add(Dense(10, activation='softmax'))
+        model = mlp_simple(activation, dropout)
         
         # Compile the model
         model.compile(
@@ -71,27 +56,7 @@ class KerasModelBuilder(ModelBuilder):
         dropout = 0.2
         lr = 1e-4
         
-        model = Sequential([
-            Input(shape=(32, 32, 3)),
-            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same'),
-            MaxPooling2D(pool_size=(2, 2)),
-            Dropout(dropout),
-            
-            Conv2D(filters=32, kernel_size=(3, 3), activation=activation, padding='same'),
-            MaxPooling2D(pool_size=(2, 2)),
-            Dropout(dropout),
-        
-            Flatten(),
-        
-            Dense(128, activation=activation),
-            Dropout(dropout),
-        
-            Dense(128, activation=activation),
-            Dropout(dropout),
-        
-            # Output layer
-            Dense(10, activation = "softmax")
-        ])
+        model = cnn_simple(activation, dropout)
         
         # Compile the model
         model.compile(
@@ -123,33 +88,13 @@ class KerasModelBuilder(ModelBuilder):
         return model
     
 
-    def _lstm_simple(self):
-        interval = 10
-        window = 48 * 60 // interval
-        
-        cells = 32
+    def _lstm_simple(self):        
+        cells = 16
         dropout = 0.1
         lr = 1e-4
         
         # Build the model
-        model = Sequential([
-            Input(shape=(window, 11)),
-
-            LSTM(cells, return_sequences=True),
-            BatchNormalization(),
-            Dropout(dropout),
-
-            LSTM(cells),
-            BatchNormalization(),
-            Dropout(dropout),
-
-            Dense(16),
-            BatchNormalization(),
-            Activation("tanh"),
-            Dropout(dropout),
-
-            Dense(1) # Output (trip count)
-        ])
+        model = lstm_simple(cells, dropout)
 
         # Compile the model
         model.compile(
@@ -161,47 +106,13 @@ class KerasModelBuilder(ModelBuilder):
         return model
 
     def _lstm_complex(self):
-        interval = 10
-        window = 48 * 60 // interval
-
         lstm_layers = 8
         cells = 512
         dropout = 0.4
         lr = 1e-4
         
         # Build the model
-        model = Sequential()
-        model.add(Input(shape=(window, 11))) # Input layer
-
-        # Add the hidden LSTM layers
-        for i in range(1, lstm_layers + 1):
-
-            # From the middle, the cells are halved
-            if (i > (lstm_layers // 2)):
-                cells = cells // 2
-
-            model.add(LSTM(cells, return_sequences = (i < lstm_layers))) # Last LSTM layer doesn't return sequences
-            model.add(BatchNormalization())
-            model.add(Dropout(dropout))
-
-            
-        # Output layer
-        model.add(Dense(256))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(128))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.2))
-
-        model.add(Dense(64))
-        model.add(BatchNormalization())
-        model.add(Activation("tanh"))
-        model.add(Dropout(0.1))
-        
-        model.add(Dense(1))
+        model = lstm_complex(cells, lstm_layers, dropout)
 
         # Compile the model
         model.compile(

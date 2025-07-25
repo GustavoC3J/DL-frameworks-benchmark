@@ -93,7 +93,7 @@ class TorchModelBuilder(ModelBuilder):
     
 
     def _lstm_simple(self):        
-        cells = 32
+        cells = 16
         dropout = 0.1
         lr = 1e-4
 

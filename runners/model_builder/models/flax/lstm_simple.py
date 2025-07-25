@@ -32,7 +32,6 @@ class LSTMSimple(nn.Module):
         lstm = scanLSTM(self.cells, dtype=self.dtype, param_dtype=self.param_dtype)
         carry1 = zero_carry(batch_size, self.cells)
         _, x = lstm(carry1, x)
-        x = nn.BatchNorm()(x, use_running_average=not training)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
         
         # Second LSTM layer
@@ -40,10 +39,9 @@ class LSTMSimple(nn.Module):
         carry2 = zero_carry(batch_size, self.cells)
         _, x = lstm2(carry2, x)
         x = x[:, -1, :] # Keep only the last element of the window
-        x = nn.BatchNorm()(x, use_running_average=not training)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
-        x = nn.Dense(16, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.Dense(self.cells // 2, dtype=self.dtype, param_dtype=self.param_dtype)(x)
         x = nn.tanh(x)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
