@@ -62,7 +62,7 @@ class GPUMonitor:
                 f'gpu_{idx}_power'
             ]
 
-        with open(self.file_path, 'w', newline='') as f:
+        with open(self.file_path, 'w', newline='\n') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
