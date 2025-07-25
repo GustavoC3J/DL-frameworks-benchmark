@@ -42,11 +42,12 @@ class LSTMSimple(nn.Module):
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         x = nn.Dense(self.cells // 2, dtype=self.dtype, param_dtype=self.param_dtype)(x)
-        x = nn.tanh(x)
+        x = nn.relu(x)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         # Output (trip count)
         x = nn.Dense(1, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.relu(x)
         
         return x
 

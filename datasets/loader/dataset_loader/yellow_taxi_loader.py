@@ -1,16 +1,16 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 from datasets.loader.dataset_loader.dataset_loader import DatasetLoader
 
 
 class YellowTaxiDatasetLoader(DatasetLoader):
 
-    def load(self, dataset_type, split_vars=False, **kwargs):
+    def load(self, dataset_type, **kwargs):
         interval = 10 # Minutes
-        window = 48 * 60 // interval # Number of timesteps
+        window = 24 * 60 // interval # Number of timesteps
 
         # Load data
         path = "datasets/yellow-taxi"
@@ -28,7 +28,7 @@ class YellowTaxiDatasetLoader(DatasetLoader):
 
         if (dataset_type == "train"):
             # Scale attributes
-            self.scaler = StandardScaler()
+            self.scaler = MinMaxScaler()
             df = pd.DataFrame(self.scaler.fit_transform(df), columns=df.columns)
 
             # Split into training and validation sets (80%-20%)

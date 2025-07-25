@@ -16,10 +16,11 @@ class LSTMSimple(nn.Module):
         # Linear and output
         self.output = nn.Sequential(
             nn.Linear(cells, linear_size),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Dropout(dropout),
 
-            nn.Linear(linear_size, 1)
+            nn.Linear(linear_size, 1),
+            nn.ReLU()
         )
         
     def forward(self, x):

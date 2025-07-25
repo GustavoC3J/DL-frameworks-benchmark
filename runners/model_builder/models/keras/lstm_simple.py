@@ -11,8 +11,9 @@ def lstm_simple(cells, dropout_rate=0.2):
         layers.Dropout(dropout_rate),
 
         layers.Dense(cells // 2),
-        layers.Activation("tanh"),
+        layers.Activation("relu"),
         layers.Dropout(dropout_rate),
 
-        layers.Dense(1) # Output (trip count)
+        layers.Dense(1), # Output (trip count)
+        layers.Activation("relu")
     ])
