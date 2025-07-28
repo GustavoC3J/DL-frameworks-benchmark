@@ -1,6 +1,7 @@
 
 import flax.linen as nn
 import jax.numpy as jnp
+from runners.model_builder.models.flax.lstm import LSTM
 
 class LSTMSimple(nn.Module):
     cells: int
@@ -18,27 +19,18 @@ class LSTMSimple(nn.Module):
                 jnp.zeros((batch_size, hidden_size), dtype=x.dtype)
             )
         
-        scanLSTM = nn.scan(
-            nn.OptimizedLSTMCell,
-            variable_broadcast="params",
-            split_rngs={"params": False},
-            in_axes=1,
-            out_axes=1
-        )
-        
         batch_size = x.shape[0]
 
         # First LSTM layer
-        lstm = scanLSTM(self.cells, dtype=self.dtype, param_dtype=self.param_dtype)
+        lstm = LSTM(cells=self.cells, return_sequences=True, dtype=self.dtype, param_dtype=self.param_dtype)
         carry1 = zero_carry(batch_size, self.cells)
-        _, x = lstm(carry1, x)
+        x = lstm(x, initial_state=carry1)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
         
         # Second LSTM layer
-        lstm2 = scanLSTM(self.cells, dtype=self.dtype, param_dtype=self.param_dtype)
+        lstm2 = LSTM(cells=self.cells, return_sequences=False, dtype=self.dtype, param_dtype=self.param_dtype)
         carry2 = zero_carry(batch_size, self.cells)
-        _, x = lstm2(carry2, x)
-        x = x[:, -1, :] # Keep only the last element of the window
+        x = lstm2(carry2, x)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         x = nn.Dense(self.cells // 2, dtype=self.dtype, param_dtype=self.param_dtype)(x)

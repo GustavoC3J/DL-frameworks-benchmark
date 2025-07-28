@@ -109,12 +109,12 @@ class TorchModelBuilder(ModelBuilder):
         return model, config
 
     def _lstm_complex(self):
-        lstm_layers = 8
-        initial_cells = 512
-        dropout = 0.4
+        lstm_layers = 3
+        cells = 512
+        dropout = 0.1
         lr = 1e-4
 
-        model = LSTMComplex(lstm_layers, initial_cells, dropout)
+        model = LSTMComplex(cells, lstm_layers, dropout_rate=dropout)
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),

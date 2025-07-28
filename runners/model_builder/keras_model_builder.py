@@ -106,13 +106,13 @@ class KerasModelBuilder(ModelBuilder):
         return model
 
     def _lstm_complex(self):
-        lstm_layers = 8
+        lstm_layers = 3
         cells = 512
-        dropout = 0.4
+        dropout = 0.1
         lr = 1e-4
         
         # Build the model
-        model = lstm_complex(cells, lstm_layers, dropout)
+        model = lstm_complex(cells, lstm_layers, dropout_rate=dropout)
 
         # Compile the model
         model.compile(

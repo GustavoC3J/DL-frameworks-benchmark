@@ -15,7 +15,7 @@ class LSTM(nn.Module):
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, x: Array, initial_state: Tuple[Array, Array], *, training: bool = False):
+    def __call__(self, x: Array, initial_state: Tuple[Array, Array]):
         """ 
         x: (batch, time, input_dim)
         initial_state: (h, c), both (batch, features)

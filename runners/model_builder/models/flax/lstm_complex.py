@@ -1,10 +1,12 @@
 import flax.linen as nn
 import jax.numpy as jnp
 
+from runners.model_builder.models.flax.lstm import LSTM
+
 
 class LSTMComplex(nn.Module):
     lstm_layers: int
-    initial_cells: int
+    cells: int
     dropout: float
     dtype: any
     param_dtype: any
@@ -19,37 +21,30 @@ class LSTMComplex(nn.Module):
                 jnp.zeros((batch_size, hidden_size), dtype=x.dtype)
             )
         
-        scanLSTM = nn.scan(
-            nn.OptimizedLSTMCell,
-            variable_broadcast="params",
-            split_rngs={"params": False},
-            in_axes=1,
-            out_axes=1
-        )
-        
         batch_size = x.shape[0]
-        current_cells = self.initial_cells
+        cells = self.cells
 
         for i in range(1, self.lstm_layers + 1):
-            # From the middle, the cells are halved
-            if i > (self.lstm_layers // 2):
-                current_cells = current_cells // 2
 
-            lstm = scanLSTM(current_cells, dtype=self.dtype, param_dtype=self.param_dtype)
-            carry = zero_carry(batch_size, current_cells)
-            _, x = lstm(carry, x)
+            lstm = LSTM(cells=cells, return_sequences=(i < self.lstm_layers), dtype=self.dtype, param_dtype=self.param_dtype)
+            carry = zero_carry(batch_size, cells)
+            x = lstm(carry, x)
                 
-            x = nn.BatchNorm(axis=-1)(x, use_running_average=not training)
+            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
             x = nn.Dropout(self.dropout)(x, deterministic=not training)
+            
+            # Cells are halved for the next layer
+            cells = max(cells // 2, 64)
 
 
         # Funnel and output layer
-        for dim, drop in zip([256, 128, 64], [0.2, 0.2, 0.1]):
-            x = nn.Dense(dim, dtype=self.dtype, param_dtype=self.param_dtype)(x)
-            x = nn.BatchNorm()(x, use_running_average=not training)
-            x = nn.tanh(x)
-            x = nn.Dropout(drop)(x, deterministic=not training)
+        for units in [128, 64, 32]:
+            x = nn.Dense(units, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
+            x = nn.relu(x)
+            x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         x = nn.Dense(1, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.relu(x)
 
         return x

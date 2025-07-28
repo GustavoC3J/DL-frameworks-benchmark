@@ -148,7 +148,7 @@ class FlaxModelBuilder(ModelBuilder):
 
     def _lstm_simple(self):
         interval = 10
-        window = 48 * 60 // interval
+        window = 24 * 60 // interval
         
         cells = 16
         dropout = 0.1
@@ -182,16 +182,22 @@ class FlaxModelBuilder(ModelBuilder):
     
     def _lstm_complex(self):
         interval = 10
-        window = 48 * 60 // interval
+        window = 24 * 60 // interval
         
-        lstm_layers = 8
-        initial_cells = 512
-        dropout = 0.4
+        lstm_layers = 3
+        cells = 512
+        dropout = 0.1
         lr = 1e-4
 
         self.key, init_key = jax.random.split(self.key, num=2)
 
-        model = LSTMComplex(lstm_layers, initial_cells, dropout, self.dtype, self.param_dtype)
+        model = LSTMComplex(
+            lstm_layers=lstm_layers,
+            cells=cells,
+            dropout=dropout,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype
+        )
         
         # Initial state
         dummy_input = jnp.ones((1, window, 11))
