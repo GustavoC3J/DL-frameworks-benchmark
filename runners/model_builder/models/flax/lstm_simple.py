@@ -22,13 +22,13 @@ class LSTMSimple(nn.Module):
         batch_size = x.shape[0]
 
         # First LSTM layer
-        lstm = LSTM(cells=self.cells, return_sequences=True, dtype=self.dtype, param_dtype=self.param_dtype)
+        lstm = LSTM(self.cells, return_sequences=True, dtype=self.dtype, param_dtype=self.param_dtype)
         carry1 = zero_carry(batch_size, self.cells)
         x = lstm(x, initial_state=carry1)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
         
         # Second LSTM layer
-        lstm2 = LSTM(cells=self.cells, return_sequences=False, dtype=self.dtype, param_dtype=self.param_dtype)
+        lstm2 = LSTM(self.cells, return_sequences=False, dtype=self.dtype, param_dtype=self.param_dtype)
         carry2 = zero_carry(batch_size, self.cells)
         x = lstm2(carry2, x)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)

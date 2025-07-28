@@ -31,7 +31,7 @@ def parse_params():
 
     return parser.parse_args()
 
-def run_experiment(runner, params, output_directory):
+def run_experiment(runner, params, output_directory, monitor):
 
     # Path to the results files
     global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
@@ -43,8 +43,6 @@ def run_experiment(runner, params, output_directory):
 
 
     # Perform the experiment
-
-    monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
     
     # Define and build the model
     start = time.time()
@@ -177,9 +175,11 @@ if __name__ == "__main__":
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
         os.makedirs(output_directory, exist_ok=True)
+        
+        monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
 
         try:
-            run_experiment(runner, params, output_directory)
+            run_experiment(runner, params, output_directory, monitor)
         except Exception as e:
             # Clean traceback routes and save to file
             tb_lines = traceback.format_exc().splitlines()
@@ -195,3 +195,5 @@ if __name__ == "__main__":
                 
             with open(output_directory + "/error.txt", "a") as f:
                 f.write("\n".join(cleaned_lines))
+
+            monitor.stop()

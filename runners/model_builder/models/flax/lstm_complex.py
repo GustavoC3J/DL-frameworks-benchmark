@@ -26,7 +26,7 @@ class LSTMComplex(nn.Module):
 
         for i in range(1, self.lstm_layers + 1):
 
-            lstm = LSTM(cells=cells, return_sequences=(i < self.lstm_layers), dtype=self.dtype, param_dtype=self.param_dtype)
+            lstm = LSTM(cells, return_sequences=(i < self.lstm_layers), dtype=self.dtype, param_dtype=self.param_dtype)
             carry = zero_carry(batch_size, cells)
             x = lstm(carry, x)
                 
