@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
+jax,mlp,simple,mixed_fp16,100,64,42,2,2.156982660293579,277.1573066711426,2.4264919757843018,81920.0

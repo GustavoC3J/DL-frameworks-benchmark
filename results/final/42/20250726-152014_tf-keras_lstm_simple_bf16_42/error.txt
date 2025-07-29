@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "experiment.py", line 182, in <module>
+    run_experiment(runner, params, output_directory)
+  File "experiment.py", line 62, in run_experiment
+    train_results = runner.train(*formatted_data, output_directory)
+  File "tf_runner.py", line 60, in train
+    history = self.model.fit(
+  File "traceback_utils.py", line 122, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "linalg.py", line 166, in qr
+    return tf.linalg.qr(x)
+TypeError: Value passed to parameter 'input' has DataType bfloat16 not in list of allowed values: float64, float32, float16, complex64, complex128
