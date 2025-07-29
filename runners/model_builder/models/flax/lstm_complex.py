@@ -28,7 +28,7 @@ class LSTMComplex(nn.Module):
 
             lstm = LSTM(cells, return_sequences=(i < self.lstm_layers), dtype=self.dtype, param_dtype=self.param_dtype)
             carry = zero_carry(batch_size, cells)
-            x = lstm(carry, x)
+            x = lstm(x, initial_state=carry)
                 
             x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
             x = nn.Dropout(self.dropout)(x, deterministic=not training)

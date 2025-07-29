@@ -204,7 +204,6 @@ class FlaxModelBuilder(ModelBuilder):
         variables = model.init(init_key, dummy_input, training=True)
 
         params = variables['params']
-        batch_stats = variables['batch_stats']
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -214,7 +213,6 @@ class FlaxModelBuilder(ModelBuilder):
             "params": params,
             "optimizer": optimizer,
             "opt_state": opt_state,
-            "batch_stats":batch_stats,
             "loss_fn": mse,
             "metric_fn": mae,
             "metric_name": "mae"

@@ -30,7 +30,7 @@ class LSTMSimple(nn.Module):
         # Second LSTM layer
         lstm2 = LSTM(self.cells, return_sequences=False, dtype=self.dtype, param_dtype=self.param_dtype)
         carry2 = zero_carry(batch_size, self.cells)
-        x = lstm2(carry2, x)
+        x = lstm2(x, initial_state=carry2)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         x = nn.Dense(self.cells // 2, dtype=self.dtype, param_dtype=self.param_dtype)(x)

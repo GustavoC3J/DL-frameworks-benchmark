@@ -49,4 +49,4 @@ class LSTM(nn.Module):
         if not self.return_sequences:
             outputs = outputs[:, -1, :]
 
-        return outputs, last_h, last_c if self.return_state else outputs
+        return (outputs, last_h, last_c) if self.return_state else outputs
