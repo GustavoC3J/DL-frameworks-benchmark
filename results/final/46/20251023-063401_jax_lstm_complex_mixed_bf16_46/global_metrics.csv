@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
+jax,lstm,complex,mixed_bf16,100,64,46,2,8.380218505859375,885.0119454860687,4.632591247558594,81920.0
