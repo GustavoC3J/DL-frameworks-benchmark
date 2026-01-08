@@ -1,21 +1,25 @@
-# DL Frameworks Benchmark
+# Benchmarking the Deep Learning Stack
 
-Este proyecto evalúa el rendimiento y eficiencia de diferentes frameworks y librerías de entrenamiento para **Deep Learning**.
+This project evaluates the performance and efficiency of different frameworks and training libraries for **Deep Learning**.
 
-## Características
-- Comparación de múltiples frameworks como TensorFlow, PyTorch y JAX, con y sin Keras.
-- Evaluación de modelos MLP, CNN y LSTM.
-- Evaluación de métricas clave como tiempo de entrenamiento y consumo energético.
+## Features
 
-## Preparación del entorno
-Para ejecutar este proyecto, es recomendable utilizar **Miniconda** para gestionar los entornos. Sigue estos pasos:
+- Comparison of multiple frameworks such as TensorFlow, PyTorch, and JAX, with and without Keras.
+- Evaluation of MLP, CNN, and LSTM models over two variants: simple and complex.
+- Selection of the precision format: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
+- Assessment of key metrics such as training time and energy consumption.
 
-### Instalar Miniconda
-Descarga e instala Miniconda desde la página oficial:  
-🔗 [Descargar Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main)
+## Environment setup
 
-### Crear los entornos de trabajo
-Este proyecto usa tres entornos de Conda, cada uno definido en archivos `.yml` dentro de la carpeta `environments/`. Para crearlos, ejecuta los siguientes comandos desde la ruta base del proyecto:
+To run this project, it is recommended to use **Miniconda** to manage the environments. Follow these steps:
+
+### Install Miniconda
+
+Download and install Miniconda from the official website: [Download Miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main)
+
+### Create the working environments
+
+This project uses three Conda environments, each defined in `.yml` files located in the `environments/` folder. To create them, run the following commands from the project's root directory:
 
 ```sh
 conda env create -f environments/tf_env.yml
@@ -23,32 +27,37 @@ conda env create -f environments/torch_env.yml
 conda env create -f environments/jax_env.yml
 ```
 
-### Descargar los conjuntos de datos
-En la carpeta `datasets/`se encuentra un script de Python para descargar los conjuntos de datos. Simplemente hay que ejecutar:
+### Download the datasets
+
+Inside the `datasets/` folder you will find a Python script to download the datasets. Simply run:
 
 ```sh
 python datasets/download.py
 ```
 
 
-## Ejecutar un experimento
+## Running an experiment
 
-En la carpeta `bash/`se encuentra el script `run.sh`. Este script recibe los parámetros del experimento, activa el entorno correspondiente al framework, y ejecuta el script python `experiment.run`.
-Los parámetros son el nombre del framework, el tipo de modelo, el id de la GPU y la semilla:
+Inside the `bash/` folder you will find the script `run.sh`. This script receives the experiment parameters, activates the corresponding conda environment, and executes the Python script `experiment.run`.
+
+The parameters are the following:
   1. Framework: tf-keras, torch, torch-keras, jax, jax-keras.
-  2. Modelo: mlp, cnn, lstm.
-  3. GPU: Número de GPU (0, 1, 2...). Ejecutar el comando `nvidia-smi`para ver el id de cada GPU.
-  4. Semilla: Cualquier número.
+  2. Model: mlp, cnn, lstm.
+  3. Complexity: simple, complex.
+  4. Precision: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
+  5. GPU: GPU number (0, 1, 2...). Run the command `nvidia-smi` to see each GPU's id.
+  6. Seed: Any number.
+  7. Epochs: Any number. Default: 100.
 
-Ejemplo 1: Para ejecutar un experimento con PyTorch y un modelo CNN en la GPU 0 con la semilla 42, usa:
-
-```sh
-bash/run.sh torch cnn 0 42
-```
-Ejemplo 2: Para ejecutar un experimento con JAX y Keras, y un modelo MLP en la GPU 2 con la semilla 123456, usa:
+Example 1: To run an experiment with PyTorch, a CNN model, complex version, FP32, on GPU 0 with seed 42, use:
 
 ```sh
-bash/run.sh jax-keras mlp 2 123456
+bash/run.sh torch cnn complex fp32 0 42
+```
+Example 2: To run an experiment with JAX and Keras, a MLP model, simple version, mixed precision (BF16), on GPU 2 with seed 123456 over 10 epochs, use:
+
+```sh
+bash/run.sh jax-keras mlp simple mixed_bf16 2 123456 10
 ```
 
-Al terminar la ejecución, los resultados del experimento se almacenarán en su carpeta correspondiente dentro de `results/`.
+When execution finishes, the experiment results will be stored in their corresponding folder inside `results/`.
