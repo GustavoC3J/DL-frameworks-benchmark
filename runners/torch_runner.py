@@ -1,16 +1,15 @@
 
 import copy
-import os
 import time
 
 import keras
 import torch
-from keras.callbacks import ModelCheckpoint
 
 from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
+from utils.best_weights_callback import BestWeightsCallback
 from utils.precision import Precision, get_keras_precision
 from utils.time_callback import TimeCallback
 from utils.torch_utils import adjust_outputs
@@ -89,19 +88,14 @@ class TorchRunner(Runner):
 
 
 
-    def __keras_train(self, train_dl, val_dl, path):
+    def __keras_train(self, train_dl, val_dl):
 
-        checkpoint_filepath = path + "/model.keras"
+        # The best weights are kept in GPU memory and restored at the end of fit
         callbacks = [
-            ModelCheckpoint(
-                filepath=checkpoint_filepath,
-                monitor="val_loss",
-                mode="min",
-                save_best_only=True
-            ),
+            BestWeightsCallback(),
             TimeCallback()
         ]
-        
+
         # Train the model
         history = self.model.fit(
             train_dl,
@@ -110,22 +104,18 @@ class TorchRunner(Runner):
             callbacks=callbacks
         )
 
-        # Load best model
-        if os.path.exists(checkpoint_filepath):
-            self.model = keras.models.load_model(checkpoint_filepath)
-
         # Add epoch times
         history.history["epoch_time"] = callbacks[1].times
     
         return history.history
     
 
-    def __torch_train(self, train_dl, val_dl, path):
-        
+    def __torch_train(self, train_dl, val_dl):
+
         metric_name = self.config["metric_name"]
         best_model_weights = None
         best_val_loss = float('inf')
-        best_epoch = 0
+        self.best_epoch = 0
 
         history = {
             "loss": [],
@@ -197,7 +187,7 @@ class TorchRunner(Runner):
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_model_weights = copy.deepcopy(self.model.state_dict())
-                best_epoch = epoch
+                self.best_epoch = epoch
 
 
             # Save metrics
@@ -209,22 +199,27 @@ class TorchRunner(Runner):
 
             print(f"Epoch {epoch+1}/{self.epochs} - Train Loss: {history['loss'][-1]:.4f} - Val Loss: {val_loss:.4f} - Val {metric_name}: {val_metric:.4f}")
 
-        # Save and load the best model
+        # Load the best model
         if (best_model_weights != None):
             self.model.load_state_dict(best_model_weights)
 
-        torch.save(self.model.state_dict(), path + f'/{best_epoch:02d}_model.pt')
-        
         return history
 
 
-    def train(self, trainX, validX, trainY, validY, path):
+    def train(self, trainX, validX, trainY, validY):
         train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
         val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
 
         train_fn = self.__keras_train if self.keras else self.__torch_train
 
-        return train_fn(train_dl, val_dl, path)
+        return train_fn(train_dl, val_dl)
+
+
+    def save(self, path):
+        if self.keras:
+            self.model.save(path + "/model.keras")
+        else:
+            torch.save(self.model.state_dict(), path + f'/{self.best_epoch:02d}_model.pt')
 
 
     def __keras_evaluate(self, test_dl):

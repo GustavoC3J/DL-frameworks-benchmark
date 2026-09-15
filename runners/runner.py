@@ -33,5 +33,9 @@ class Runner(ABC):
         pass
 
     @abstractmethod
+    def save(self, path):
+        pass
+
+    @abstractmethod
     def evaluate(self, testX, testY):
         pass

@@ -1,12 +1,11 @@
 
-import os
 import keras
 import tensorflow as tf
-from keras.callbacks import ModelCheckpoint
 
 from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
+from utils.best_weights_callback import BestWeightsCallback
 from utils.precision import get_keras_precision
 from utils.time_callback import TimeCallback
 
@@ -41,18 +40,13 @@ class TFRunner(Runner):
 
 
 
-    def train(self, trainX, validX, trainY, validY, path):
+    def train(self, trainX, validX, trainY, validY):
         train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
         val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
 
-        checkpoint_filepath = path + "/model.keras"
+        # The best weights are kept in GPU memory and restored at the end of fit
         callbacks = [
-            ModelCheckpoint(
-                filepath=checkpoint_filepath,
-                monitor="val_loss",
-                mode="min",
-                save_best_only=True
-            ),
+            BestWeightsCallback(),
             TimeCallback()
         ]
         
@@ -63,15 +57,15 @@ class TFRunner(Runner):
             epochs = self.epochs,
             callbacks=callbacks
         )
-
-        # Load best model
-        if os.path.exists(checkpoint_filepath):
-            self.model = keras.models.load_model(checkpoint_filepath)
             
         # Add epoch times
         history.history["epoch_time"] = callbacks[1].times
     
         return history.history
+
+
+    def save(self, path):
+        self.model.save(path + "/model.keras")
 
 
     def evaluate(self, testX, testY):

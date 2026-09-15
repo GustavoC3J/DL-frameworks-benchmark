@@ -57,10 +57,15 @@ def run_experiment(runner, params, output_directory, monitor):
     start = time.time()
     monitor.start(train_samples_filepath, start)
 
-    train_results = runner.train(*formatted_data, output_directory)
+    train_results = runner.train(*formatted_data)
 
     monitor.stop()
     training_time = time.time() - start
+
+    # Writing the best model to disk depends on each framework's format, so it is timed apart
+    start = time.time()
+    runner.save(output_directory)
+    saving_time = time.time() - start
 
 
     # Start testing
@@ -92,6 +97,7 @@ def run_experiment(runner, params, output_directory, monitor):
         'gpu_ids': params.gpu_ids,
         'definition_time': definition_time,  
         'training_time': training_time,
+        'saving_time': saving_time,
         'testing_time': testing_time,  
         **gpu_memory_total  
     }])
