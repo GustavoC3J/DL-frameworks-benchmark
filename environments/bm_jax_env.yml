@@ -1,0 +1,41 @@
+# Environment for the "jax" (Flax) and "jax-keras" backends.
+#   conda env create -f environments/bm_jax_env.yml
+name: bm_jax_env
+
+channels:
+  - defaults
+
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - jax[cuda12]==0.11.1
+      - flax==0.12.9
+      - optax==0.2.8
+      - orbax-checkpoint==0.12.4
+      # Last release (2023); it only uses jax.tree_util APIs that JAX still keeps
+      - jmp==0.0.4
+      # Both JAX backends read the data through torch's DataLoader
+      - torch==2.10.0
+      # jax[cuda12] would pull CUDA 12.9 / cuDNN 9.25: pinned to torch 2.10's stack,
+      # the same in the three environments
+      - nvidia-cublas-cu12==12.8.4.1
+      - nvidia-cuda-cupti-cu12==12.8.90
+      - nvidia-cuda-nvcc-cu12==12.8.93
+      - nvidia-cuda-nvrtc-cu12==12.8.93
+      - nvidia-cuda-runtime-cu12==12.8.90
+      - nvidia-cudnn-cu12==9.10.2.21
+      - nvidia-cufft-cu12==11.3.3.83
+      - nvidia-curand-cu12==10.3.9.90
+      - nvidia-cusolver-cu12==11.7.3.90
+      - nvidia-cusparse-cu12==12.5.8.93
+      - nvidia-nccl-cu12==2.27.5
+      - nvidia-nvjitlink-cu12==12.8.93
+      - keras==3.15.1
+      - numpy==2.5.2
+      - pandas==3.0.5
+      - scikit-learn==1.9.0
+      - nvidia-ml-py==13.610.43
+      - codecarbon==3.3.0
+      # Required by orbax-checkpoint: same version as in bm_tf_env
+      - protobuf==7.36.0

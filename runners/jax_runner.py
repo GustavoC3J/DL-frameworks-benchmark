@@ -9,7 +9,7 @@ import jmp
 import keras
 import orbax.checkpoint
 from flax.training import checkpoints
-from keras.api.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
 
 from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder

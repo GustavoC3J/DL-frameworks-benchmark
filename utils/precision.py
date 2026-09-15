@@ -9,6 +9,10 @@ class Precision(str, Enum):
     MIXED_FP16 = "mixed_fp16",
     MIXED_BF16 = "mixed_bf16"
 
+    # Since Python 3.11, f-strings would give "Precision.FP32" in the results paths
+    def __str__(self):
+        return self.value
+
 
 def get_keras_precision(precision: Precision) -> str:
     res = ""

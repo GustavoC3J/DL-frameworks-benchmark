@@ -15,13 +15,13 @@ LIBRARY=$(echo "$BACKEND" | cut -d'-' -f1)
 # Select conda environment
 case $LIBRARY in
     tf)
-        CONDA_ENV="tf_env"
+        CONDA_ENV="bm_tf_env"
         ;;
     torch)
-        CONDA_ENV="torch_env"
+        CONDA_ENV="bm_torch_env"
         ;;
     jax)
-        CONDA_ENV="jax_env"
+        CONDA_ENV="bm_jax_env"
         ;;
     *)
     	echo "Error: $LIBRARY"

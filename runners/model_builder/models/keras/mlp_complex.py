@@ -3,6 +3,8 @@ import keras
 from keras import layers, ops, initializers
 import numpy as np
 
+# Since Keras 3.9, load_model only imports keras modules, so custom models must be registered
+@keras.saving.register_keras_serializable()
 class MLPComplex(keras.Model):
 
     def __init__(
@@ -29,7 +31,8 @@ class MLPComplex(keras.Model):
         super().__init__(**kwargs)
 
         # Define the number of units for each group
-        units_per_group = np.linspace(initial_units, final_units, groups).astype(int)
+        # Python ints: Keras Dense rejects NumPy integers as units
+        units_per_group = np.linspace(initial_units, final_units, groups).astype(int).tolist()
         self.model_layers = []
 
         # Add the hidden layers

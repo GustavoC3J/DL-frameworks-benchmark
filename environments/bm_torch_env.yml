@@ -1,0 +1,20 @@
+# Environment for the "torch" and "torch-keras" backends.
+#   conda env create -f environments/bm_torch_env.yml
+name: bm_torch_env
+
+channels:
+  - defaults
+
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      # Last release built on CUDA 12 (2.11+ needs CUDA 13 and an NVIDIA driver >= 580).
+      # Its CUDA libraries are the stack the other two environments pin
+      - torch==2.10.0
+      - keras==3.15.1
+      - numpy==2.5.2
+      - pandas==3.0.5
+      - scikit-learn==1.9.0
+      - nvidia-ml-py==13.610.43
+      - codecarbon==3.3.0

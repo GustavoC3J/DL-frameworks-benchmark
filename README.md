@@ -22,9 +22,9 @@ Download and install Miniconda from the official website: [Download Miniconda](h
 This project uses three Conda environments, each defined in `.yml` files located in the `environments/` folder. To create them, run the following commands from the project's root directory:
 
 ```sh
-conda env create -f environments/tf_env.yml
-conda env create -f environments/torch_env.yml
-conda env create -f environments/jax_env.yml
+conda env create -f environments/bm_tf_env.yml
+conda env create -f environments/bm_torch_env.yml
+conda env create -f environments/bm_jax_env.yml
 ```
 
 ### Download the datasets

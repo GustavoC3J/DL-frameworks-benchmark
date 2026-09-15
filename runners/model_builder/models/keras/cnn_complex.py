@@ -62,6 +62,8 @@ class Block(keras.Layer):
 
 
 
+# Since Keras 3.9, load_model only imports keras modules, so custom models must be registered
+@keras.saving.register_keras_serializable()
 class CNNComplex(keras.Model):
 
     def __init__(

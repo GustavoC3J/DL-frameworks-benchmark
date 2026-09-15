@@ -2,7 +2,7 @@
 import os
 import keras
 import tensorflow as tf
-from keras.api.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
 
 from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
