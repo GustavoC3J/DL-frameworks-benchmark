@@ -20,8 +20,8 @@ class Block(nn.Module):
 
         x = nn.Conv(
             self.out_channels,
-            kernel_size=3,
-            strides=self.stride,
+            kernel_size=(3, 3),
+            strides=(self.stride, self.stride),
             use_bias=False, # Not needed before batchnorm
             kernel_init=self.kernel_initializer,
             dtype=self.dtype,
@@ -32,8 +32,8 @@ class Block(nn.Module):
 
         x = nn.Conv(
             self.out_channels,
-            kernel_size=3,
-            strides=1,
+            kernel_size=(3, 3),
+            strides=(1, 1),
             use_bias=False,
             kernel_init=self.kernel_initializer,
             dtype=self.dtype,
@@ -45,8 +45,8 @@ class Block(nn.Module):
         if self.stride > 1 or self.in_channels != self.out_channels:
             residual = nn.Conv(
                 self.out_channels,
-                kernel_size=1,
-                strides=self.stride,
+                kernel_size=(1, 1),
+                strides=(self.stride, self.stride),
                 use_bias=False,
                 kernel_init=self.kernel_initializer,
                 dtype=self.dtype,
@@ -75,7 +75,7 @@ class CNNComplex(nn.Module):
 
         x = nn.Conv(
             self.starting_channels,
-            kernel_size=3,
+            kernel_size=(3, 3),
             use_bias=False, # Not needed before batchnorm
             kernel_init=initializer,
             dtype=self.dtype,

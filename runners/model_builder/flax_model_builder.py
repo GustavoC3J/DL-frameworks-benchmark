@@ -116,9 +116,10 @@ class FlaxModelBuilder(ModelBuilder):
         lr = 1e-3
 
         model = CNNComplex(
-            5, # number of blocks, 6n + 2 layers
-            self.dtype,
-            self.param_dtype
+            n_blocks=5, # number of blocks, 6n + 2 layers
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            starting_channels=64
         )
 
         # Initial state
