@@ -42,8 +42,8 @@ class TFRunner(Runner):
 
 
     def train(self, trainX, validX, trainY, validY, path):
-        train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
-        val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
+        train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
+        val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
 
         checkpoint_filepath = path + "/model.keras"
         callbacks = [

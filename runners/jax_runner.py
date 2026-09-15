@@ -195,8 +195,8 @@ class JaxRunner(Runner):
         return history
     
     def train(self, trainX, validX, trainY, validY, path):
-        train_dl = self.dl_factory.fromNumpy( trainX, trainY, self.batch_size, shuffle=(self.model != "lstm") )
-        val_dl = self.dl_factory.fromNumpy( validX, validY, self.batch_size, shuffle=(self.model != "lstm") )
+        train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
+        val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
 
         return self.__keras_train(train_dl, val_dl, path) if self.keras else self.__jax_train(train_dl, val_dl, path)
 
