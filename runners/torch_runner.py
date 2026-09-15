@@ -4,7 +4,6 @@ import os
 import time
 
 import keras
-import numpy as np
 import torch
 from keras.callbacks import ModelCheckpoint
 
@@ -186,9 +185,10 @@ class TorchRunner(Runner):
                     loss.backward()
                     self.config["optimizer"].step()
 
-                
-                train_losses.append(loss.item())
-                train_metrics.append(metric)
+
+                # Kept on the GPU and read once per epoch to avoid a synchronization per batch
+                train_losses.append(loss.detach().float())
+                train_metrics.append(metric.detach().float())
 
             # Validation
             val_loss, val_metric, _ = self.__torch_evaluate(val_dl, True)
@@ -201,8 +201,8 @@ class TorchRunner(Runner):
 
 
             # Save metrics
-            history["loss"].append(np.mean(np.array(train_losses)))
-            history[metric_name].append(np.mean(np.array(train_metrics)))
+            history["loss"].append(torch.stack(train_losses).mean().item())
+            history[metric_name].append(torch.stack(train_metrics).mean().item())
             history["val_loss"].append(val_loss)
             history[f"val_{metric_name}"].append(val_metric)
             history["epoch_time"].append(time.time() - epoch_start_time)
@@ -266,12 +266,12 @@ class TorchRunner(Runner):
                     loss = self.config["loss_fn"](test_outputs, batch_y)
                     metric = self.config["metric_fn"](test_outputs, batch_y)
 
-                losses.append(loss.item())
-                metrics.append(metric)
+                losses.append(loss.float())
+                metrics.append(metric.float())
 
         # Calculate mean
-        test_loss = np.mean(np.array(losses))
-        test_metric = np.mean(np.array(metrics))
+        test_loss = torch.stack(losses).mean().item()
+        test_metric = torch.stack(metrics).mean().item()
     
         # Print log message if it is test
         if not val:

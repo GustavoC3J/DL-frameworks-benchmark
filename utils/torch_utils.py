@@ -3,13 +3,14 @@ import torch
 from torch import nn
 
 
+# Metrics return tensors to avoid that the CPU waits for the GPU
 def accuracy(preds, y):
     _, predicted = torch.max(preds, 1) # Find highest. 1 is the dimension
-    return (predicted == y).sum().item() / y.size(0)
+    return (predicted == y).float().mean()
 
 
 def mae(preds, y):
-    return torch.mean(torch.abs(preds - y)).item()
+    return torch.mean(torch.abs(preds - y))
 
 
 def init_layer_weights(layer, kernel_initializer):
