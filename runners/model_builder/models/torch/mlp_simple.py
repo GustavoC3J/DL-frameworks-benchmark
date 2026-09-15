@@ -15,8 +15,7 @@ class MLPSimple(nn.Module):
             activation,
             nn.Dropout(dropout),
 
-            nn.Linear(128, 10),
-            nn.Softmax(dim=1)
+            nn.Linear(128, 10)
         )
 
     def forward(self, x):

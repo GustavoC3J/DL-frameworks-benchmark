@@ -72,13 +72,12 @@ class CNNComplex(nn.Module):
         layers.append(nn.Flatten()) # shape [batch_size, channels]
 
         layers.append(nn.Linear(in_channels, 10))
-        layers.append(nn.Softmax(dim=1))
 
         self.model = nn.Sequential(*layers)
 
 
     def forward(self, x):
         # Switch to (batch_size, channels, height, width)
-        x = x.permute(0, 3, 2, 1)
+        x = x.permute(0, 3, 1, 2)
 
         return self.model(x)

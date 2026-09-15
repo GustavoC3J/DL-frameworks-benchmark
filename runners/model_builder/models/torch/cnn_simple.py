@@ -29,12 +29,11 @@ class CNNSimple(nn.Module):
             nn.Dropout(dropout),
 
             # Output layer
-            nn.Linear(128, 10),
-            nn.Softmax(dim=1)
+            nn.Linear(128, 10)
         )
 
     def forward(self, x):
         # Switch to (batch_size, channels, height, width)
-        x = x.permute(0, 3, 2, 1)
+        x = x.permute(0, 3, 1, 2)
 
         return self.model(x)

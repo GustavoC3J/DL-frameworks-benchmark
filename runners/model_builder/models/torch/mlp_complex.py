@@ -35,7 +35,6 @@ class MLPComplex(nn.Module):
 
         # Output layer
         layers.append(nn.Linear(final_units, 10))
-        layers.append(nn.Softmax(dim=1))
 
         self.model = nn.Sequential(*layers)
 
