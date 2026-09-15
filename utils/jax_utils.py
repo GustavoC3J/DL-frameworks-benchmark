@@ -19,12 +19,13 @@ def accuracy(logits, y):
     return jnp.mean(preds == y)
 
 
+# The model outputs (B, 1) and targets are (B,): without reshaping, broadcasting compares (B, B)
 def mse(preds, y):
-    return jnp.mean((preds - y) ** 2)
+    return jnp.mean((preds.reshape(y.shape) - y) ** 2)
 
 
 def mae(preds, y):
-    return jnp.mean(jnp.abs(preds - y))
+    return jnp.mean(jnp.abs(preds.reshape(y.shape) - y))
 
 
 
