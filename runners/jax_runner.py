@@ -4,7 +4,6 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
-import jmp
 import keras
 import orbax.checkpoint
 from flax.training import checkpoints
@@ -15,7 +14,7 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
-from utils.precision import Precision, get_keras_precision
+from utils.precision import get_jmp_policy, get_keras_precision
 from utils.time_callback import TimeCallback
 
 
@@ -46,34 +45,7 @@ class JaxRunner(Runner):
             keras.config.set_dtype_policy(get_keras_precision(self.precision))
 
         else:
-            self.loss_scale = None
-
-            if self.precision == Precision.FP32:
-                self.policy = jmp.get_policy("float32")
-            
-            elif self.precision == Precision.FP16:
-                self.policy = jmp.get_policy("float16")
-
-            elif self.precision == Precision.BF16:
-                self.policy = jmp.get_policy("bfloat16")
-
-            else:
-                self.loss_scale = jmp.DynamicLossScale(jnp.float32(2 ** 15))
-
-                if self.precision == Precision.MIXED_FP16:
-                    self.policy = jmp.Policy(
-                        compute_dtype=jnp.float16,
-                        param_dtype=jnp.float32,
-                        output_dtype=jnp.float32
-                    )
-                elif self.precision == Precision.MIXED_BF16:
-                    self.policy = jmp.Policy(
-                        compute_dtype=jnp.bfloat16,
-                        param_dtype=jnp.float32,
-                        output_dtype=jnp.float32
-                    )
-                else:
-                    raise ValueError("Unsupported precision: " + self.precision)
+            self.policy, self.loss_scale = get_jmp_policy(self.precision)
 
     
     def define_model(self):

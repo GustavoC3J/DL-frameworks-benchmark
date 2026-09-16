@@ -10,7 +10,7 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
-from utils.precision import Precision, get_keras_precision
+from utils.precision import get_keras_precision, get_torch_precision
 from utils.time_callback import TimeCallback
 from utils.torch_utils import adjust_outputs
 
@@ -44,30 +44,11 @@ class TorchRunner(Runner):
             keras.config.set_dtype_policy(get_keras_precision(self.precision))
 
         else:
-            self.amp = False # AMP = Automatic Mixed Precision
+            self.dtype, self.amp_dtype = get_torch_precision(self.precision)
+            self.amp = self.amp_dtype is not None # AMP = Automatic Mixed Precision
 
-            if self.precision == Precision.FP32:
-                self.dtype = torch.float32
-
-            elif self.precision == Precision.FP16:
-                self.dtype = torch.float16
-
-            elif self.precision == Precision.BF16:
-                self.dtype = torch.bfloat16
-
-            else:
-                self.dtype = torch.float32
-                self.amp = True
+            if self.amp:
                 self.scaler = torch.amp.GradScaler()
-
-                if self.precision == Precision.MIXED_FP16:
-                    self.amp_dtype = torch.float16
-
-                elif self.precision == Precision.MIXED_BF16:
-                    self.amp_dtype = torch.bfloat16
-                    
-                else:
-                    raise ValueError("Unsupported precision: " + self.precision)
 
     
     def define_model(self):
