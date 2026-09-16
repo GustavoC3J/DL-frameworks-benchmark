@@ -4,11 +4,13 @@ and the loss use the same data types in every framework. Everything is checked a
 set it up (Keras dtype policy, model.to(dtype) or autocast, and jmp policy).
 """
 
+from contextlib import nullcontext
+
 import numpy as np
 import pytest
 
-from tests.helpers import MODEL_IDS, MODELS, build_keras, make_batch, requires_flax, requires_torch
-from tests.native_models import build_flax, build_torch
+from tests.helpers import MODEL_IDS, MODELS, build_keras, make_batch, on_gpu, requires_flax, requires_torch
+from tests.native_models import build_flax, build_torch, to_torch
 from tests.transplant import flax_pairs, flax_tensors, torch_pairs, torch_tensors
 from utils.precision import Precision, get_keras_precision, get_torch_precision
 
@@ -99,18 +101,23 @@ def test_torch_output_and_loss_dtypes_match_keras(model_type, complexity, precis
     reference = keras_model(model_type, complexity, precision)
     model, config, amp_dtype = torch_model_in_precision(model_type, complexity, precision)
 
-    if amp_dtype is not None:
-        pytest.skip("under autocast the dtype of each operation is decided on the GPU at runtime")
+    if amp_dtype is not None and not on_gpu():
+        pytest.skip("autocast decides the dtype of each operation on the GPU: run with --gpu")
 
     x, y = make_batch(model_type, batch_size=2)
     keras_outputs = reference(x, training=False)
     keras_loss = reference.compute_loss(y=y, y_pred=keras_outputs)
 
-    with torch.no_grad():
-        outputs = model(torch.from_numpy(x).to(dtype=model_dtype(model)))
+    # TorchRunner casts the batch in pure precision and lets autocast do it in mixed
+    batch_x = to_torch(x, dtype=None if amp_dtype else model_dtype(model))
+    batch_y = to_torch(y)
+    autocast = torch.autocast(device_type="cuda", dtype=amp_dtype) if amp_dtype else nullcontext()
+
+    with torch.no_grad(), autocast:
+        outputs = model(batch_x)
         if model_type == "lstm":
-            outputs = adjust_outputs(outputs, torch.from_numpy(y))
-        loss = config["loss_fn"](outputs, torch.from_numpy(y))
+            outputs = adjust_outputs(outputs, batch_y)
+        loss = config["loss_fn"](outputs, batch_y)
 
     assert dtype_name(outputs.dtype) == dtype_name(keras_outputs.dtype), "outputs"
     assert dtype_name(loss.dtype) == dtype_name(keras_loss.dtype), "loss"

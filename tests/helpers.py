@@ -29,6 +29,11 @@ NUM_CLASSES = 10
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".artifacts")
 
 
+def on_gpu():
+    """Whether conftest left a GPU visible (pytest --gpu)."""
+    return bool(os.environ.get("CUDA_VISIBLE_DEVICES", ""))
+
+
 def is_classification(model_type):
     return model_type != "lstm"
 

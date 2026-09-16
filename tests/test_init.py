@@ -55,7 +55,7 @@ def test_torch_initialization_matches_keras(model_type, complexity):
     keras_model = build_keras(model_type, complexity)
     torch_model, _ = build_torch(model_type, complexity)
 
-    native_tensors = lambda native: {name: t.detach().numpy() for name, t in torch_tensors(native[3]).items()}
+    native_tensors = lambda native: {name: t.detach().cpu().numpy() for name, t in torch_tensors(native[3]).items()}
     mismatches = init_mismatches(torch_pairs(keras_model, torch_model), torch_arrays, native_tensors)
 
     assert not mismatches, "\n".join(mismatches)

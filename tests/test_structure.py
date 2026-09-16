@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from tests.helpers import MODEL_IDS, MODELS, build_keras, make_batch, requires_flax, requires_torch
-from tests.native_models import build_flax, build_torch
+from tests.native_models import build_flax, build_torch, to_torch
 from tests.transplant import compare_shapes, flax_arrays, flax_pairs, torch_arrays, torch_pairs
 
 
@@ -45,7 +45,7 @@ def test_torch_parameter_count_matches_keras(model_type, complexity):
 
     x, _ = make_batch(model_type)
     with torch.no_grad():
-        assert tuple(torch_model.eval()(torch.from_numpy(x)).shape) == tuple(keras_model(x).shape)
+        assert tuple(torch_model.eval()(to_torch(x)).shape) == tuple(keras_model(x).shape)
 
 
 @requires_flax

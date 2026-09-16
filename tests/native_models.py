@@ -7,16 +7,29 @@ from functools import lru_cache
 
 import numpy as np
 
-from tests.helpers import is_classification, keras_reference, make_batch
+from tests.helpers import is_classification, keras_reference, make_batch, on_gpu
 from tests.transplant import keras_to_flax, keras_to_torch
 from utils.precision import Precision, get_jmp_policy
 
 
 # --- torch ----------------------------------------------------------------------------------
 
+def torch_device():
+    """cuda:0 is the GPU conftest left visible, as in the runners."""
+    return "cuda:0" if on_gpu() else "cpu"
+
+
+def to_torch(array, dtype=None):
+    import torch
+    return torch.from_numpy(array).to(device=torch_device(), dtype=dtype)
+
+
 def build_torch(model_type, complexity):
     from runners.model_builder.torch_model_builder import TorchModelBuilder
-    return TorchModelBuilder(model_type, complexity).build()
+
+    model, config = TorchModelBuilder(model_type, complexity).build()
+
+    return model.to(device=torch_device()), config
 
 
 @lru_cache(maxsize=None)
@@ -33,10 +46,10 @@ def torch_loss_and_metric(model_type, model, config, x, y):
 
     from utils.torch_utils import adjust_outputs
 
-    batch_y = torch.from_numpy(y)
+    batch_y = to_torch(y)
 
     with torch.no_grad():
-        outputs = model(torch.from_numpy(x))
+        outputs = model(to_torch(x))
         if model_type == "lstm":
             outputs = adjust_outputs(outputs, batch_y)
 
@@ -51,11 +64,11 @@ def torch_probabilities_or_outputs(model_type, model, x):
     import torch
 
     with torch.no_grad():
-        outputs = model(torch.from_numpy(x))
+        outputs = model(to_torch(x))
         if is_classification(model_type):
             outputs = torch.softmax(outputs, dim=-1)
 
-    return outputs.numpy()
+    return outputs.cpu().numpy()
 
 
 # --- Flax -----------------------------------------------------------------------------------
