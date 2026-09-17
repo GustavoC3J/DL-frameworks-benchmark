@@ -61,3 +61,20 @@ bash/run.sh jax-keras mlp simple mixed_bf16 2 123456 10
 ```
 
 When execution finishes, the experiment results will be stored in their corresponding folder inside `results/`.
+
+## Checking that the models are equivalent
+
+`tests/` holds an equivalence suite: it checks that the six models are the same model in Keras,
+torch and Flax (same architecture, same outputs with the same weights, same hyperparameters,
+initialization, dtypes and gradients). See [`tests/README.md`](tests/README.md).
+
+```sh
+bash tests/run_all.sh          # add --gpu <id> to run it on a GPU
+```
+
+## Analysis
+
+[`profiling/profiling_analysis.ipynb`](profiling/profiling_analysis.ipynb) profiles the benchmark
+itself: how much of the training time the GPU is actually busy, why `torch-keras` is the slowest
+backend, and why its LSTM stopped being an outlier after a Keras update. See
+[`profiling/`](profiling/).
