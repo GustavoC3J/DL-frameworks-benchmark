@@ -35,6 +35,17 @@ Inside the `datasets/` folder you will find a Python script to download the data
 python datasets/download.py
 ```
 
+### Preprocess the taxi dataset
+
+The LSTM dataset is 7 GB of raw trip records that get cleaned and aggregated into a few thousand
+10-minute intervals. That result is cached, so it is computed once instead of on every run:
+
+```sh
+python -m datasets.preprocess_taxi
+```
+
+This is optional: the loader builds the cache itself the first time it needs it.
+
 
 ## Running an experiment
 

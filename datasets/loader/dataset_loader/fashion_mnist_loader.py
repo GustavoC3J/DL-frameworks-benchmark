@@ -16,8 +16,8 @@ class FashionMNISTLoader(DatasetLoader):
             labels = data['label'].values
             images = data.drop('label', axis=1).values
 
-            # Scale the images between 0 and 1
-            images = images / 255.0
+            # Scale the images between 0 and 1. float32 is what the tensors use: halves the memory
+            images = (images / 255.0).astype("float32")
 
             # Split into training and validation sets (80%-20%)
             # Returns trainX, validX, trainY, validY 
@@ -28,7 +28,7 @@ class FashionMNISTLoader(DatasetLoader):
 
             # Extract labels and pixel values
             testY = test['label'].values
-            testX = test.drop('label', axis=1).values / 255.0
+            testX = (test.drop('label', axis=1).values / 255.0).astype("float32")
 
             return (testX, testY)
         

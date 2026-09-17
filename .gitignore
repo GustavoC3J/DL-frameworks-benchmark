@@ -2,6 +2,7 @@
 datasets/*
 !datasets/loader
 !datasets/download.py
+!datasets/preprocess_taxi.py
 
 # Exclude results but keep the directory and final results
 results/*

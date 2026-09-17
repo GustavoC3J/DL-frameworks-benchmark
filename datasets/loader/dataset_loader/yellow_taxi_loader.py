@@ -1,9 +1,21 @@
 
+import os
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 from datasets.loader.dataset_loader.dataset_loader import DatasetLoader
+
+PATH = "datasets/yellow-taxi"
+CACHE_PATH = f"{PATH}/cache"
+
+# Columns read from the raw files: cleaning drops the rest anyway
+COLUMNS = [
+    'passenger_count','trip_distance','pickup_longitude','pickup_latitude',
+    'dropoff_longitude','dropoff_latitude', 'tpep_pickup_datetime', 'tpep_dropoff_datetime',
+    'total_amount'
+]
 
 
 class YellowTaxiDatasetLoader(DatasetLoader):
@@ -12,19 +24,7 @@ class YellowTaxiDatasetLoader(DatasetLoader):
         interval = 10 # Minutes
         window = 24 * 60 // interval # Number of timesteps
 
-        # Load data
-        path = "datasets/yellow-taxi"
-
-        if (dataset_type == "train"):
-            files = [f"{path}/yellow_tripdata_2016-0{i}.csv" for i in range(1,4)]
-            df = pd.concat([pd.read_csv(file) for file in files], ignore_index = True)
-        else:
-            file = f"{path}/yellow_tripdata_2015-01.csv"
-            df = pd.read_csv(file)
-        
-        # Prepare data
-        df = self.__clean(df)
-        df = self.__transform(df, interval)
+        df = self.aggregate(dataset_type, interval)
 
         if (dataset_type == "train"):
             # Scale attributes
@@ -46,16 +46,41 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             testX, testY = self.__windows(np.array(df), window)
 
             return testX, testY
-            
+
+
+    def aggregate(self, dataset_type, interval=10):
+        """Trips aggregated every `interval` minutes, from the cache when it exists.
+
+        Building it reads several GB of raw CSV, so it is done once and every run reuses it.
+        """
+        cache = f"{CACHE_PATH}/{dataset_type}_{interval}min.csv"
+
+        if os.path.exists(cache):
+            # round_trip: pandas' fast float parser would change the last bit of some values
+            df = pd.read_csv(cache, index_col=0, parse_dates=True, float_precision="round_trip")
+            # Taken from the index when computed, so they come back wider from the file
+            return df.astype({"day_of_year": "int32", "weekday": "int32", "hour": "int32"})
+
+        if (dataset_type == "train"):
+            files = [f"{PATH}/yellow_tripdata_2016-0{i}.csv" for i in range(1,4)]
+        else:
+            files = [f"{PATH}/yellow_tripdata_2015-01.csv"]
+
+        df = pd.concat([pd.read_csv(file, usecols=COLUMNS) for file in files], ignore_index = True)
+        df = self.__transform(self.__clean(df), interval)
+
+        # Written through a temporary file, so a run never reads a half-written cache
+        os.makedirs(CACHE_PATH, exist_ok=True)
+        partial = f"{cache}.{os.getpid()}"
+        df.to_csv(partial, float_format="%.17g") # Round-trips the floats exactly
+        os.replace(partial, cache)
+
+        return df
 
 
     def __clean(self, df):
         # Keep only relevant atributes
-        df = df[[
-            'passenger_count','trip_distance','pickup_longitude','pickup_latitude',
-            'dropoff_longitude','dropoff_latitude', 'tpep_pickup_datetime', 'tpep_dropoff_datetime',
-            'total_amount'
-        ]]
+        df = df[COLUMNS]
 
         # Remove passenger count outliers (more than 6 passengers or negative)
         df = df[(df["passenger_count"] >= 1) & (df["passenger_count"] <= 6)]
@@ -132,4 +157,5 @@ class YellowTaxiDatasetLoader(DatasetLoader):
         for i in range(len(data) - timesteps):
             x.append(data[i:i+timesteps])  # Input window
             y.append(data[i+timesteps, -1])  # Next trip count
-        return np.array(x), np.array(y)
+        # float32 is what the tensors use: halves the memory of the windows
+        return np.array(x, dtype="float32"), np.array(y, dtype="float32")

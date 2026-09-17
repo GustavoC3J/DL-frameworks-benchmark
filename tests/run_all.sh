@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs the equivalence suite in the three environments. Extra arguments go to pytest.
 #   bash tests/run_all.sh [--gpu 2] [-k lstm] [-x] ...
-# CONDA_HOME overrides where conda lives, since /home is not shared with the nodes.
+# CONDA_HOME overrides where conda is installed.
 
 cd "$(dirname "$0")/.."
 source "${CONDA_HOME:-$HOME/miniconda3}/etc/profile.d/conda.sh"

@@ -53,7 +53,8 @@ class CIFAR10Loader(DatasetLoader):
         
         # Prepare data
         images = shape_images(images)
-        images = images / 255.0 # Scale the images between 0 and 1
+        # Scale the images between 0 and 1. float32 is what the tensors use: halves the memory
+        images = (images / 255.0).astype("float32")
 
         if dataset_type == "train":
             # Split into training and validation sets (80%-20%)
