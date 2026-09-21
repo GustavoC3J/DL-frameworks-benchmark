@@ -9,6 +9,11 @@ results/*
 !results/.gitkeep
 !results/final
 
+# The weights of the ViT are too big to version: 325 MB per run in the complex one
+results/final/*/*_vit_*/model.keras
+results/final/*/*_vit_*/*_model.pt
+results/final/*/*_vit_*/checkpoint_0/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

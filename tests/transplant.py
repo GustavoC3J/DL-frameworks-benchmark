@@ -1,27 +1,30 @@
 """
 Keras -> torch and Keras -> Flax weight transplant.
 
-Parametric layers are paired by kind (dense, conv, bn, ln, lstm) and in definition order,
-which is the same in the three frameworks. Each Keras layer is converted to the arrays the
-native layer should hold, so the same conversion serves the structure tests (shapes) and the
-forward tests (values).
+Parametric layers are paired by kind (dense, conv, bn, ln, lstm, mha, embedding, class_token) and in
+definition order, which is the same in the three frameworks. Each Keras layer is converted to
+the arrays the native layer should hold, so the same conversion serves the structure tests
+(shapes) and the forward tests (values).
 """
 
 import numpy as np
 
 from tests.helpers import to_numpy
 
-KINDS = ("dense", "conv", "bn", "ln", "lstm")
+KINDS = ("dense", "conv", "bn", "ln", "lstm", "mha", "embedding", "class_token")
 
 
 # --- Keras side ----------------------------------------------------------------------------
 
 def keras_leaves(layer):
-    """Leaf layers in definition order (Keras' _flatten_layers reverses the children)."""
+    """Leaf layers in definition order (Keras' _flatten_layers reverses the children).
+
+    LSTM and MultiHeadAttention count as leaves: their sublayers have no counterpart in torch or Flax.
+    """
     import keras
 
     for child in layer._layers:
-        if isinstance(child, keras.layers.LSTM) or not child._layers:
+        if isinstance(child, (keras.layers.LSTM, keras.layers.MultiHeadAttention)) or not child._layers:
             yield child
         else:
             yield from keras_leaves(child)
@@ -34,12 +37,17 @@ def keras_parametric_layers(model):
     """
     import keras
 
+    from runners.model_builder.models.keras.vit import ClassToken
+
     kinds = {
         keras.layers.Dense: "dense",
         keras.layers.Conv2D: "conv",
         keras.layers.BatchNormalization: "bn",
         keras.layers.LayerNormalization: "ln",
         keras.layers.LSTM: "lstm",
+        keras.layers.MultiHeadAttention: "mha",
+        keras.layers.Embedding: "embedding",
+        ClassToken: "class_token",
     }
 
     layers = []
@@ -55,6 +63,9 @@ def keras_parametric_layers(model):
 
         if kind == "lstm":
             arrays = {name: to_numpy(getattr(layer.cell, name)) for name in ("kernel", "recurrent_kernel", "bias")}
+        elif kind == "mha":
+            # A kernel and a bias per projection: query/kernel, ..., attention_output/bias
+            arrays = {"/".join(variable.path.split("/")[-2:]): to_numpy(variable) for variable in layer.weights}
         else:
             arrays = {variable.path.split("/")[-1]: to_numpy(variable) for variable in layer.weights}
 
@@ -107,8 +118,10 @@ def native_shapes(native):
 # --- torch ----------------------------------------------------------------------------------
 
 def torch_tensors(module):
-    """Parameters and buffers of a module, by name."""
-    tensors = dict(module.named_parameters(recurse=False))
+    """Parameters and buffers of a module, by name. MultiheadAttention keeps its output projection in a submodule."""
+    import torch.nn as nn
+
+    tensors = dict(module.named_parameters(recurse=isinstance(module, nn.MultiheadAttention)))
     tensors.update({n: b for n, b in module.named_buffers(recurse=False) if n != "num_batches_tracked"})
     return tensors
 
@@ -117,7 +130,18 @@ def torch_parametric_modules(model):
     """(kind, name, {tensor name: shape}, module) in registration order."""
     import torch.nn as nn
 
-    kinds = {nn.Linear: "dense", nn.Conv2d: "conv", nn.BatchNorm2d: "bn", nn.LayerNorm: "ln", nn.LSTM: "lstm"}
+    from runners.model_builder.models.torch.vit import ClassToken
+
+    kinds = {
+        nn.Linear: "dense",
+        nn.Conv2d: "conv",
+        nn.BatchNorm2d: "bn",
+        nn.LayerNorm: "ln",
+        nn.LSTM: "lstm",
+        nn.MultiheadAttention: "mha",
+        nn.Embedding: "embedding",
+        ClassToken: "class_token",
+    }
     modules = []
 
     for name, module in model.named_modules():
@@ -163,6 +187,24 @@ def torch_arrays(kind, arrays, flatten_shape=None):
             "bias_ih_l0": arrays["bias"],
             "bias_hh_l0": np.zeros_like(arrays["bias"]),
         }
+
+    if kind == "mha":
+        # Keras keeps a (features, heads, head_dim) kernel per projection; torch stacks Q, K and V in one matrix
+        projections = ("query", "key", "value")
+        kernels = [arrays[f"{name}/kernel"] for name in projections]
+        output = arrays["attention_output/kernel"]
+        return {
+            "in_proj_weight": np.concatenate([kernel.reshape(kernel.shape[0], -1).T for kernel in kernels]),
+            "in_proj_bias": np.concatenate([arrays[f"{name}/bias"].ravel() for name in projections]),
+            "out_proj.weight": output.reshape(-1, output.shape[-1]).T,
+            "out_proj.bias": arrays["attention_output/bias"],
+        }
+
+    if kind == "embedding":
+        return {"weight": arrays["embeddings"]}
+
+    if kind == "class_token":
+        return {"token": arrays["class_token"]}
 
     raise ValueError(kind)
 
@@ -229,8 +271,18 @@ def flax_parametric_modules(model, variables, x):
     import flax.linen as nn
 
     from runners.model_builder.models.flax.lstm import LSTM
+    from runners.model_builder.models.flax.vit import ClassToken
 
-    kinds = {nn.Dense: "dense", nn.Conv: "conv", nn.BatchNorm: "bn", nn.LayerNorm: "ln", LSTM: "lstm"}
+    kinds = {
+        nn.Dense: "dense",
+        nn.Conv: "conv",
+        nn.BatchNorm: "bn",
+        nn.LayerNorm: "ln",
+        LSTM: "lstm",
+        nn.MultiHeadDotProductAttention: "mha",
+        nn.Embed: "embedding",
+        ClassToken: "class_token",
+    }
     modules = []
 
     for module, path in flax_called_modules(model, variables, x, tuple(kinds)):
@@ -271,6 +323,21 @@ def flax_arrays(kind, arrays, flatten_shape=None):
             converted[f"params/OptimizedLSTMCell_0/h{gate}/kernel"] = recurrent
             converted[f"params/OptimizedLSTMCell_0/h{gate}/bias"] = bias
         return converted
+
+    if kind == "mha":
+        # The DenseGeneral kernels have the same (features, heads, head_dim) layout as Keras': only the names change
+        names = {"query": "query", "key": "key", "value": "value", "out": "attention_output"}
+        return {
+            f"params/{flax_name}/{variable}": arrays[f"{keras_name}/{variable}"]
+            for flax_name, keras_name in names.items()
+            for variable in ("kernel", "bias")
+        }
+
+    if kind == "embedding":
+        return {"params/embedding": arrays["embeddings"]}
+
+    if kind == "class_token":
+        return {"params/token": arrays["class_token"]}
 
     raise ValueError(kind)
 

@@ -10,6 +10,7 @@ from runners.model_builder.models.torch.lstm_complex import LSTMComplex
 from runners.model_builder.models.torch.lstm_simple import LSTMSimple
 from runners.model_builder.models.torch.mlp_complex import MLPComplex
 from runners.model_builder.models.torch.mlp_simple import MLPSimple
+from runners.model_builder.models.torch.vit import ViT
 from utils.torch_utils import accuracy, mae
 
 
@@ -121,6 +122,56 @@ class TorchModelBuilder(ModelBuilder):
             "loss_fn": nn.MSELoss(),
             "metric_fn": mae,
             "metric_name": "mae"
+        }
+
+        return model, config
+
+
+    def _vit_simple(self):
+        lr = 1e-4
+
+        model = ViT(
+            image_size=32,
+            patch_size=4,
+            projection_dim=192,
+            num_heads=3,
+            transformer_layers=6,
+            mlp_dim=768, # 4 times the projection, as in the paper
+            num_classes=100,
+            dropout=0.1,
+            attention_dropout=0.0
+        )
+
+        config = {
+            "optimizer": optim.Adam(model.parameters(), lr=lr),
+            "loss_fn": nn.CrossEntropyLoss(),
+            "metric_fn": accuracy,
+            "metric_name": "accuracy"
+        }
+
+        return model, config
+
+
+    def _vit_complex(self):
+        lr = 1e-4
+
+        model = ViT(
+            image_size=32,
+            patch_size=4,
+            projection_dim=768,
+            num_heads=12,
+            transformer_layers=12,
+            mlp_dim=3072,
+            num_classes=100,
+            dropout=0.1,
+            attention_dropout=0.0
+        )
+
+        config = {
+            "optimizer": optim.Adam(model.parameters(), lr=lr),
+            "loss_fn": nn.CrossEntropyLoss(),
+            "metric_fn": accuracy,
+            "metric_name": "accuracy"
         }
 
         return model, config

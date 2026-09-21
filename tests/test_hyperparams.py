@@ -1,6 +1,7 @@
 """
 Same hyperparameters: Adam (learning rate, betas, bias correction and epsilon) as each builder
-configures it, and momentum and epsilon of the normalization layers and dropout rates.
+configures it, momentum and epsilon of the normalization layers, and dropout rates, attention
+included (and whether its dropout mask is shared across the batch, as Flax does by default).
 """
 
 import numpy as np
@@ -119,7 +120,7 @@ def test_optax_adam_epsilon_matches_keras(model_type, complexity):
 # --- Normalization and dropout --------------------------------------------------------------
 
 def empty_hyperparameters():
-    return {"bn_momentum": [], "bn_epsilon": [], "ln_epsilon": [], "dropout_rate": []}
+    return {"bn_momentum": [], "bn_epsilon": [], "ln_epsilon": [], "dropout_rate": [], "attention_dropout_broadcast": []}
 
 
 def keras_layer_hyperparameters(model):
@@ -135,6 +136,10 @@ def keras_layer_hyperparameters(model):
             values["ln_epsilon"].append(layer.epsilon)
         elif isinstance(layer, keras.layers.Dropout):
             values["dropout_rate"].append(layer.rate)
+        elif isinstance(layer, keras.layers.MultiHeadAttention):
+            # Its dropout drops each attention weight on its own
+            values["dropout_rate"].append(layer.dropout)
+            values["attention_dropout_broadcast"].append(False)
 
     return values
 
@@ -153,6 +158,9 @@ def torch_layer_hyperparameters(model):
             values["ln_epsilon"].append(module.eps)
         elif isinstance(module, nn.Dropout):
             values["dropout_rate"].append(module.p)
+        elif isinstance(module, nn.MultiheadAttention):
+            values["dropout_rate"].append(module.dropout)
+            values["attention_dropout_broadcast"].append(False)
 
     return values
 
@@ -161,13 +169,17 @@ def flax_layer_hyperparameters(model, variables, x):
     import flax.linen as nn
 
     values = empty_hyperparameters()
+    types = (nn.BatchNorm, nn.LayerNorm, nn.Dropout, nn.MultiHeadDotProductAttention)
 
-    for module, _ in flax_called_modules(model, variables, x, (nn.BatchNorm, nn.LayerNorm, nn.Dropout)):
+    for module, _ in flax_called_modules(model, variables, x, types):
         if isinstance(module, nn.BatchNorm):
             values["bn_momentum"].append(module.momentum)
             values["bn_epsilon"].append(module.epsilon)
         elif isinstance(module, nn.LayerNorm):
             values["ln_epsilon"].append(module.epsilon)
+        elif isinstance(module, nn.MultiHeadDotProductAttention):
+            values["dropout_rate"].append(module.dropout_rate)
+            values["attention_dropout_broadcast"].append(module.broadcast_dropout)
         else:
             values["dropout_rate"].append(module.rate)
 

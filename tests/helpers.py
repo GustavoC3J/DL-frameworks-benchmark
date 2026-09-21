@@ -20,11 +20,12 @@ MODELS = [
     ("mlp", "simple"), ("mlp", "complex"),
     ("cnn", "simple"), ("cnn", "complex"),
     ("lstm", "simple"), ("lstm", "complex"),
+    ("vit", "simple"), ("vit", "complex"),
 ]
 MODEL_IDS = [f"{model_type}-{complexity}" for model_type, complexity in MODELS]
 
-INPUT_SHAPES = {"mlp": (784,), "cnn": (32, 32, 3), "lstm": (144, 11)}
-NUM_CLASSES = 10
+INPUT_SHAPES = {"mlp": (784,), "cnn": (32, 32, 3), "lstm": (144, 11), "vit": (32, 32, 3)}
+NUM_CLASSES = {"mlp": 10, "cnn": 10, "vit": 100}
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".artifacts")
 
@@ -44,7 +45,7 @@ def make_batch(model_type, batch_size=8, seed=0):
     x = rng.uniform(0, 1, size=(batch_size, *INPUT_SHAPES[model_type])).astype("float32")
 
     if is_classification(model_type):
-        y = rng.integers(0, NUM_CLASSES, size=batch_size).astype("int64")
+        y = rng.integers(0, NUM_CLASSES[model_type], size=batch_size).astype("int64")
     else:
         y = rng.uniform(0, 1, size=batch_size).astype("float32")
 
@@ -87,6 +88,8 @@ def set_canonical_weights(model, seed=0):
         elif name in ("bias", "beta"):
             value = rng.uniform(0, 0.2, shape)
         elif name == "moving_mean":
+            value = rng.normal(0, 0.1, shape)
+        elif name in ("embeddings", "class_token"):
             value = rng.normal(0, 0.1, shape)
         else:
             raise ValueError(f"No canonical rule for variable {variable.path}")

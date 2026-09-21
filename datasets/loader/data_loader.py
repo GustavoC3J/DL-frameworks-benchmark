@@ -15,6 +15,7 @@ DEFAULT_DATASET = {
     "mlp": "fashion-mnist",
     "cnn": "cifar10",
     "lstm": "yellow-taxi",
+    "vit": "cifar100",
 }
 
 

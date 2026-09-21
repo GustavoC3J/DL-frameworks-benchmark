@@ -27,8 +27,10 @@ def distribution_mismatch(keras_array, native_array):
     if std_a < 1e-12 or std_b < 1e-12:
         return describe
 
+    # The difference of two independent sample means has sqrt(2) times the standard error of one, and the
+    # suite compares hundreds of tensors: six of those are out of chance's reach, not of a shifted initializer
     std_tolerance = max(0.1, 5 / np.sqrt(2 * a.size))
-    mean_tolerance = 5 * max(std_a, std_b) / np.sqrt(a.size)
+    mean_tolerance = 6 * np.sqrt(2) * max(std_a, std_b) / np.sqrt(a.size)
 
     if abs(std_b / std_a - 1) > std_tolerance or abs(a.mean() - b.mean()) > mean_tolerance:
         return describe

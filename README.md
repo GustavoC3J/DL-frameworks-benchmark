@@ -5,7 +5,7 @@ This project evaluates the performance and efficiency of different frameworks an
 ## Features
 
 - Comparison of multiple frameworks such as TensorFlow, PyTorch, and JAX, with and without Keras.
-- Evaluation of MLP, CNN, and LSTM models over two variants: simple and complex.
+- Evaluation of MLP, CNN, LSTM and Vision Transformer (ViT) models over two variants: simple and complex.
 - Selection of the precision format: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
 - Assessment of key metrics such as training time and energy consumption.
 
@@ -53,12 +53,16 @@ Inside the `bash/` folder you will find the script `run.sh`. This script receive
 
 The parameters are the following:
   1. Framework: tf-keras, torch, torch-keras, jax, jax-keras.
-  2. Model: mlp, cnn, lstm.
+  2. Model: mlp, cnn, lstm, vit.
   3. Complexity: simple, complex.
   4. Precision: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
   5. GPU: GPU number (0, 1, 2...). Run the command `nvidia-smi` to see each GPU's id.
   6. Seed: Any number.
   7. Epochs: Any number. Default: 100.
+
+Every model trains with a batch size of 64, except the ViT, which uses 512: the paper it comes from
+trains with 4096, and 512 is the largest batch of that recipe that fits in one GPU. Pass
+`--batch-size` to `experiment.py` to override it.
 
 Example 1: To run an experiment with PyTorch, a CNN model, complex version, FP32, on GPU 0 with seed 42, use:
 
@@ -75,7 +79,7 @@ When execution finishes, the experiment results will be stored in their correspo
 
 ## Checking that the models are equivalent
 
-`tests/` holds an equivalence suite: it checks that the six models are the same model in Keras,
+`tests/` holds an equivalence suite: it checks that the eight models are the same model in Keras,
 torch and Flax (same architecture, same outputs with the same weights, same hyperparameters,
 initialization, dtypes and gradients). See [`tests/README.md`](tests/README.md).
 
