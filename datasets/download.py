@@ -4,7 +4,8 @@ import zipfile
 import os
 
 def download_and_extract(dataset_name, url):
-    file_name = f"{dataset_name}.zip" if dataset_name != "cifar10" else f"{dataset_name}.tar.gz"
+    is_tar = dataset_name.startswith("cifar")
+    file_name = f"{dataset_name}.tar.gz" if is_tar else f"{dataset_name}.zip"
     
     # Download the file
     response = requests.get(url, stream=True)
@@ -21,7 +22,7 @@ def download_and_extract(dataset_name, url):
     os.makedirs(extract_path, exist_ok=True)
 
     try:
-        if dataset_name == "cifar10":
+        if is_tar:
             with tarfile.open(file_name, 'r:gz') as tar_ref:
                 tar_ref.extractall(extract_path)
         else:
@@ -42,6 +43,7 @@ def download_and_extract(dataset_name, url):
 datasets = {
     "fashion-mnist": "https://www.kaggle.com/api/v1/datasets/download/zalando-research/fashionmnist",
     "cifar10": "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz",
+    "cifar100": "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz",
     "yellow-taxi": "https://www.kaggle.com/api/v1/datasets/download/elemento/nyc-yellow-taxi-trip-data"
 }
 
