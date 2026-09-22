@@ -14,7 +14,10 @@ class Block(nn.Module):
 
         initialize = lambda l: init_layer_weights(l, kernel_initializer)
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=stride, bias=False)
+        # 'same' in Keras and Flax only pads the bottom and the right when the stride is 2,
+        # so padding=1 would shift the window by one pixel
+        self.uneven_padding = stride > 1
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=0 if self.uneven_padding else 1, stride=stride, bias=False)
         initialize(self.conv1)
         self.bn1 = nn.BatchNorm2d(out_channels, eps=BN_EPSILON, momentum=BN_MOMENTUM)
         
@@ -29,6 +32,9 @@ class Block(nn.Module):
     
     def forward(self, x):
         residual = x
+
+        if self.uneven_padding:
+            x = F.pad(x, (0, 1, 0, 1))
 
         x = self.conv1(x)
         x = self.bn1(x)

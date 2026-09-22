@@ -53,16 +53,18 @@ the way the runners do).
 The tests use the **builders**, not the model classes, because bugs like the ResNet stem of Flax
 were in the builder arguments.
 
-## Failing tests
+## Status
 
-The failures are real discrepancies between frameworks, not problems with the suite: the dtype of
-the loss in reduced precision, Flax's BatchNorm not following the dtype policy, and the padding of
-torch's ResNet stride-2 convolutions. Default epsilons and initializers used to be on this list too;
-they are now homogenized across the three frameworks and covered by `test_init.py`.
+The whole suite passes on CPU. Every discrepancy it exposed has been fixed: the default epsilons
+and initializers, which are now homogenized across the three frameworks and covered by
+`test_init.py` and `test_hyperparams.py`, the dtype of the loss in reduced precision, Flax's
+BatchNorm not following the dtype policy, and the padding of torch's stride-2 convolutions.
 
-Adam's epsilon is not tested at all: Keras applies it before the bias correction (not after, like
-torch and optax), so no shared value would give the same trajectory, and the difference only
-matters for near-zero gradients. It stays a declared difference, not something these tests check.
+Two things are deliberately left out. Adam's epsilon is not tested: Keras applies it before the
+bias correction (not after, like torch and optax), so no shared value would give the same
+trajectory, and the difference only matters for near-zero gradients. It stays a declared
+difference. And the training step of `torch` is written but skipped, waiting for the runners to be
+split so that the step becomes a reusable function.
 
 ## Adding a model or a layer
 

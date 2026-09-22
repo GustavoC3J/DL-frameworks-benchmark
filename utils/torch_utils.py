@@ -1,6 +1,16 @@
 
 import torch
 from torch import nn
+from torch.nn import functional as F
+
+
+# Keras computes the loss in float32 whatever the dtype policy; torch would use the compute dtype
+def softmax_cross_entropy(logits, y):
+    return F.cross_entropy(logits.float(), y)
+
+
+def mse(preds, y):
+    return F.mse_loss(preds.float(), y.float())
 
 
 # Metrics return tensors to avoid that the CPU waits for the GPU
@@ -10,7 +20,7 @@ def accuracy(preds, y):
 
 
 def mae(preds, y):
-    return torch.mean(torch.abs(preds - y))
+    return torch.mean(torch.abs(preds.float() - y.float()))
 
 
 def init_lstm_weights(lstm):

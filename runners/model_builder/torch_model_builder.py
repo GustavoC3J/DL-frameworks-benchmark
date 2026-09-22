@@ -11,7 +11,7 @@ from runners.model_builder.models.torch.lstm_simple import LSTMSimple
 from runners.model_builder.models.torch.mlp_complex import MLPComplex
 from runners.model_builder.models.torch.mlp_simple import MLPSimple
 from runners.model_builder.models.torch.vit import ViT
-from utils.torch_utils import accuracy, mae
+from utils.torch_utils import accuracy, mae, mse, softmax_cross_entropy
 
 
 class TorchModelBuilder(ModelBuilder):
@@ -25,7 +25,7 @@ class TorchModelBuilder(ModelBuilder):
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
@@ -47,7 +47,7 @@ class TorchModelBuilder(ModelBuilder):
         
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
@@ -65,7 +65,7 @@ class TorchModelBuilder(ModelBuilder):
         
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
@@ -85,7 +85,7 @@ class TorchModelBuilder(ModelBuilder):
         
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
@@ -102,7 +102,7 @@ class TorchModelBuilder(ModelBuilder):
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.MSELoss(),
+            "loss_fn": mse,
             "metric_fn": mae,
             "metric_name": "mae"
         }
@@ -119,7 +119,7 @@ class TorchModelBuilder(ModelBuilder):
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.MSELoss(),
+            "loss_fn": mse,
             "metric_fn": mae,
             "metric_name": "mae"
         }
@@ -144,7 +144,7 @@ class TorchModelBuilder(ModelBuilder):
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }
@@ -170,7 +170,7 @@ class TorchModelBuilder(ModelBuilder):
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),
-            "loss_fn": nn.CrossEntropyLoss(),
+            "loss_fn": softmax_cross_entropy,
             "metric_fn": accuracy,
             "metric_name": "accuracy"
         }

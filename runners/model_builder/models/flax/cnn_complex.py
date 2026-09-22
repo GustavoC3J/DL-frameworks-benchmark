@@ -31,7 +31,14 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
+        x = nn.BatchNorm(
+            momentum=BN_MOMENTUM,
+            epsilon=BN_EPSILON,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            # Keras and torch keep the statistics in the policy's dtype; Flax forces float32 by default
+            force_float32_reductions=False
+        )(x, use_running_average=not training)
         x = nn.relu(x)
 
         x = nn.Conv(
@@ -43,9 +50,15 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
+        x = nn.BatchNorm(
+            momentum=BN_MOMENTUM,
+            epsilon=BN_EPSILON,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            force_float32_reductions=False
+        )(x, use_running_average=not training)
 
-        # Downsample si hace falta
+        # Downsample if needed
         if self.stride > 1 or self.in_channels != self.out_channels:
             residual = nn.Conv(
                 self.out_channels,
@@ -85,7 +98,13 @@ class CNNComplex(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
+        x = nn.BatchNorm(
+            momentum=BN_MOMENTUM,
+            epsilon=BN_EPSILON,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            force_float32_reductions=False
+        )(x, use_running_average=not training)
         x = nn.relu(x)
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters

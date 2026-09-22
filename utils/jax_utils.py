@@ -10,8 +10,9 @@ class TrainState(train_state.TrainState):
   loss_scale: jmp.LossScale
 
 
+# Keras computes the loss in float32 whatever the dtype policy; jax would use the compute dtype
 def softmax_cross_entropy(logits, y):
-    return optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=y).mean()
+    return optax.softmax_cross_entropy_with_integer_labels(logits=logits.astype(jnp.float32), labels=y).mean()
     
 
 def accuracy(logits, y):
@@ -21,11 +22,11 @@ def accuracy(logits, y):
 
 # The model outputs (B, 1) and targets are (B,): without reshaping, broadcasting compares (B, B)
 def mse(preds, y):
-    return jnp.mean((preds.reshape(y.shape) - y) ** 2)
+    return jnp.mean((preds.reshape(y.shape).astype(jnp.float32) - y) ** 2)
 
 
 def mae(preds, y):
-    return jnp.mean(jnp.abs(preds.reshape(y.shape) - y))
+    return jnp.mean(jnp.abs(preds.reshape(y.shape).astype(jnp.float32) - y))
 
 
 
