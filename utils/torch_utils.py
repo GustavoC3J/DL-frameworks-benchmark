@@ -13,6 +13,26 @@ def mae(preds, y):
     return torch.mean(torch.abs(preds - y))
 
 
+def init_lstm_weights(lstm):
+    """Keras' LSTM initialization: glorot kernel, orthogonal recurrent kernel and unit_forget_bias.
+
+    The QR of the orthogonal initializer runs here in float32, before the model is cast to the
+    target precision, which float16 and bfloat16 do not support.
+    """
+    for name, parameter in lstm.named_parameters():
+        if name.startswith("weight_ih"):
+            nn.init.xavier_uniform_(parameter)
+        elif name.startswith("weight_hh"):
+            nn.init.orthogonal_(parameter)
+        elif name.startswith("bias"):
+            nn.init.zeros_(parameter)
+
+    # Gate order (i, f, g, o): the forget gate of one of the two biases carries Keras' unit_forget_bias
+    units = lstm.hidden_size
+    with torch.no_grad():
+        lstm.bias_ih_l0[units:2 * units].fill_(1.0)
+
+
 def init_layer_weights(layer, kernel_initializer):
 
     # Initialize layer's weights using selected initializer

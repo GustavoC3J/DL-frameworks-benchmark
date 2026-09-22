@@ -1,6 +1,8 @@
 
 import torch.nn as nn
 
+from utils.torch_utils import init_layer_weights, init_lstm_weights
+
 class LSTMSimple(nn.Module):
     def __init__(self, cells, dropout):
         super().__init__()
@@ -22,7 +24,15 @@ class LSTMSimple(nn.Module):
             nn.Linear(linear_size, 1),
             nn.ReLU()
         )
-        
+
+        for lstm in (self.lstm1, self.lstm2):
+            init_lstm_weights(lstm)
+
+        # Keras' default for Dense: torch draws kaiming uniform with a non-zero bias
+        for layer in self.output:
+            init_layer_weights(layer, "glorot_uniform")
+
+
     def forward(self, x):
         # x: [batch, window, features]
         # BatchNorm1d expects [batch, features, window]

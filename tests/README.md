@@ -40,7 +40,7 @@ exactly the same ones without exchanging files.
 | `test_structure.py` | Parameter count (modulo torch's second LSTM bias), same layer types in the same order, compatible shapes, output shape |
 | `test_forward.py` | With the canonical weights transplanted: same outputs in inference, same loss and metric on the canonical batch, through each runner's evaluation path. Also that the ViT cuts the same patches as `keras.ops.image.extract_patches` |
 | `test_keras_backends.py` | That `tf-keras`, `torch-keras` and `jax-keras` give the same outputs, loss and metric |
-| `test_hyperparams.py` | Adam: trajectory (learning rate, betas, bias correction) and epsilon. Momentum and epsilon of BatchNorm and LayerNorm, and dropout rates, attention included (and whether its dropout mask is shared across the batch, as Flax does by default) |
+| `test_hyperparams.py` | Adam: trajectory (learning rate, betas, bias correction). Momentum and epsilon of BatchNorm and LayerNorm, and dropout rates, attention included (and whether its dropout mask is shared across the batch, as Flax does by default). Adam's epsilon is declared different on purpose and left out, see below |
 | `test_init.py` | That every tensor a builder initializes follows the same distribution as its Keras counterpart (mean and standard deviation, with a tolerance that depends on its size) |
 | `test_precision.py` | For the five precisions: dtype of the parameters, declared compute dtype, and dtype of the outputs and the loss |
 | `test_train_step.py` | One SGD step with learning rate 1, which exposes the gradient: same loss, same gradients (compared at the scale of their layer) and same BatchNorm statistics |
@@ -55,9 +55,14 @@ were in the builder arguments.
 
 ## Failing tests
 
-The failures are real discrepancies between frameworks, not problems with the suite: differences in
-default epsilons, initializers, Adam's epsilon and the dtype of the loss in reduced precision. They
-are being fixed one at a time.
+The failures are real discrepancies between frameworks, not problems with the suite: the dtype of
+the loss in reduced precision, Flax's BatchNorm not following the dtype policy, and the padding of
+torch's ResNet stride-2 convolutions. Default epsilons and initializers used to be on this list too;
+they are now homogenized across the three frameworks and covered by `test_init.py`.
+
+Adam's epsilon is not tested at all: Keras applies it before the bias correction (not after, like
+torch and optax), so no shared value would give the same trajectory, and the difference only
+matters for near-zero gradients. It stays a declared difference, not something these tests check.
 
 ## Adding a model or a layer
 

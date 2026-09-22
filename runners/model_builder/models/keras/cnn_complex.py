@@ -3,6 +3,10 @@ import keras
 from keras import layers, ops, initializers
 import numpy as np
 
+# Same values in the three frameworks: Keras defaults to an epsilon of 1e-3
+BN_MOMENTUM = 0.99
+BN_EPSILON = 1e-5
+
 
 class Block(keras.Layer):
 
@@ -17,10 +21,10 @@ class Block(keras.Layer):
         super().__init__(**kwargs)
 
         self.conv1 = layers.Conv2D(out_channels, 3, padding='same', strides=stride, kernel_initializer=kernel_initializer, use_bias=False)
-        self.bn1 = layers.BatchNormalization()
+        self.bn1 = layers.BatchNormalization(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)
         
         self.conv2 = layers.Conv2D(out_channels, 3, padding='same', kernel_initializer=kernel_initializer, use_bias=False)
-        self.bn2 = layers.BatchNormalization()
+        self.bn2 = layers.BatchNormalization(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)
         
         self.downsample = None
         if stride > 1 or in_channels != out_channels:
@@ -78,7 +82,7 @@ class CNNComplex(keras.Model):
         self.model_layers = []
         
         self.model_layers.append(layers.Conv2D(starting_channels, 3, padding='same', kernel_initializer=kernel_initializer, use_bias=False))
-        self.model_layers.append(layers.BatchNormalization())
+        self.model_layers.append(layers.BatchNormalization(momentum=BN_MOMENTUM, epsilon=BN_EPSILON))
         self.model_layers.append(layers.ReLU())
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
@@ -95,7 +99,7 @@ class CNNComplex(keras.Model):
 
         # Flatten and perform final prediction
         self.model_layers.append(layers.GlobalAveragePooling2D())
-        self.model_layers.append(layers.Dense(10, activation = "softmax"))
+        self.model_layers.append(layers.Dense(10, activation="softmax", kernel_initializer="glorot_uniform"))
 
 
         # Config for model saving

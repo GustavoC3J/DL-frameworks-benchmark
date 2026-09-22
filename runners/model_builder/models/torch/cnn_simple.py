@@ -2,6 +2,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+from utils.torch_utils import init_layer_weights
+
 class CNNSimple(nn.Module):
     def __init__(self, activation, dropout):
         super().__init__()
@@ -31,6 +33,10 @@ class CNNSimple(nn.Module):
             # Output layer
             nn.Linear(128, 10)
         )
+
+        # Keras' default for Conv2D and Dense: torch draws kaiming uniform with a non-zero bias
+        for layer in self.model:
+            init_layer_weights(layer, "glorot_uniform")
 
     def forward(self, x):
         # Switch to (batch_size, channels, height, width)

@@ -6,6 +6,7 @@ import optax
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.flax.cnn_complex import CNNComplex
 from runners.model_builder.models.flax.cnn_simple import CNNSimple
+from runners.model_builder.models.flax.lstm import unit_forget_bias
 from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex
@@ -164,7 +165,7 @@ class FlaxModelBuilder(ModelBuilder):
         dummy_input = jnp.ones((1, window, 11))
         variables = model.init(init_key, dummy_input, training=True)
 
-        params = variables['params']
+        params = unit_forget_bias(variables['params'])
 
         # Optimizer
         optimizer = optax.adam(lr)
@@ -205,7 +206,7 @@ class FlaxModelBuilder(ModelBuilder):
         dummy_input = jnp.ones((1, window, 11))
         variables = model.init(init_key, dummy_input, training=True)
 
-        params = variables['params']
+        params = unit_forget_bias(variables['params'])
 
         # Optimizer
         optimizer = optax.adam(lr)

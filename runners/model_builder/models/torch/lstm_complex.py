@@ -1,6 +1,9 @@
 import torch.nn as nn
 
-from utils.torch_utils import init_layer_weights
+from utils.torch_utils import init_layer_weights, init_lstm_weights
+
+# Same epsilon in the three frameworks: Keras defaults to 1e-3 and Flax to 1e-6
+LN_EPSILON = 1e-5
 
 class LSTMComplex(nn.Module):
     def __init__(self, cells, lstm_layers, features=11, dropout_rate=0.2):
@@ -12,8 +15,11 @@ class LSTMComplex(nn.Module):
 
         input_size = features
         for _ in range(lstm_layers):
-            self.lstm_layers.append(nn.LSTM(input_size, cells, batch_first=True))
-            self.norm_layers.append(nn.LayerNorm(cells))
+            lstm = nn.LSTM(input_size, cells, batch_first=True)
+            init_lstm_weights(lstm)
+
+            self.lstm_layers.append(lstm)
+            self.norm_layers.append(nn.LayerNorm(cells, eps=LN_EPSILON))
             self.dropout_layers.append(nn.Dropout(dropout_rate))
 
             input_size = cells
@@ -28,12 +34,14 @@ class LSTMComplex(nn.Module):
             init_layer_weights(linear, "he_uniform")
 
             self.dense_funnel.append(linear)
-            self.dense_funnel.append(nn.LayerNorm(units))
+            self.dense_funnel.append(nn.LayerNorm(units, eps=LN_EPSILON))
             self.dense_funnel.append(nn.ReLU())
             self.dense_funnel.append(nn.Dropout(dropout_rate))
             input_size = units
 
-        self.dense_funnel.append(nn.Linear(32, 1))
+        output = nn.Linear(32, 1)
+        init_layer_weights(output, "he_uniform")
+        self.dense_funnel.append(output)
         self.dense_funnel.append(nn.ReLU())
 
 

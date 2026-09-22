@@ -3,6 +3,9 @@ import jax.numpy as jnp
 
 from runners.model_builder.models.flax.lstm import LSTM
 
+# Same epsilon in the three frameworks: Keras defaults to 1e-3 and Flax to 1e-6
+LN_EPSILON = 1e-5
+
 
 class LSTMComplex(nn.Module):
     lstm_layers: int
@@ -30,7 +33,7 @@ class LSTMComplex(nn.Module):
             carry = zero_carry(batch_size, cells)
             x = lstm(x, initial_state=carry)
                 
-            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
+            x = nn.LayerNorm(epsilon=LN_EPSILON, dtype=self.dtype, param_dtype=self.param_dtype)(x)
             x = nn.Dropout(self.dropout)(x, deterministic=not training)
             
             # Cells are halved for the next layer
@@ -39,12 +42,12 @@ class LSTMComplex(nn.Module):
 
         # Funnel and output layer
         for units in [128, 64, 32]:
-            x = nn.Dense(units, dtype=self.dtype, param_dtype=self.param_dtype)(x)
-            x = nn.LayerNorm(dtype=self.dtype, param_dtype=self.param_dtype)(x)
+            x = nn.Dense(units, kernel_init=nn.initializers.he_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x)
+            x = nn.LayerNorm(epsilon=LN_EPSILON, dtype=self.dtype, param_dtype=self.param_dtype)(x)
             x = nn.relu(x)
             x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
-        x = nn.Dense(1, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.Dense(1, kernel_init=nn.initializers.he_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x)
         x = nn.relu(x)
 
         return x

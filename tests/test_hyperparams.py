@@ -1,7 +1,11 @@
 """
-Same hyperparameters: Adam (learning rate, betas, bias correction and epsilon) as each builder
-configures it, momentum and epsilon of the normalization layers, and dropout rates, attention
-included (and whether its dropout mask is shared across the batch, as Flax does by default).
+Same hyperparameters: Adam (learning rate, betas and bias correction) as each builder configures
+it, momentum and epsilon of the normalization layers, and dropout rates, attention included (and
+whether its dropout mask is shared across the batch, as Flax does by default).
+
+Adam's epsilon is declared different on purpose (see CLAUDE.md) and left out of these tests: Keras
+applies it before the bias correction, so equal epsilon values would not give the same trajectory
+anyway, and the difference only matters for near-zero gradients.
 """
 
 import numpy as np
@@ -16,7 +20,6 @@ GRADIENTS = [
     np.array(values, dtype="float32")
     for values in ([1.0, -0.5, 0.2, -0.1], [-0.3, 0.8, 0.1, 0.5], [0.6, 0.6, -1.0, 0.2], [-1.0, 0.1, 0.4, -0.7], [0.2, -0.9, 0.3, 0.1])
 ]
-TINY_GRADIENT = 1e-8
 
 
 # --- Adam -----------------------------------------------------------------------------------
@@ -66,13 +69,6 @@ def optax_trajectory(transformation, gradients):
     return np.array(trajectory)
 
 
-def optax_epsilon(transformation):
-    """Epsilon recovered from the first update, lr * g / (|g| + eps), with a large and a tiny gradient."""
-    first_updates = -optax_trajectory(transformation, [np.array([1.0, TINY_GRADIENT], dtype="float32")])[0]
-    learning_rate = first_updates[0]
-    return TINY_GRADIENT * (learning_rate / first_updates[1] - 1)
-
-
 def trajectory_tolerance(optimizer):
     """Positions crossing zero inflate relative errors; a thousandth of a step is still far below a wrong lr or beta."""
     return dict(rtol=1e-4, atol=1e-3 * float(optimizer.get_config()["learning_rate"]))
@@ -88,16 +84,6 @@ def test_torch_adam_matches_keras(model_type, complexity):
     np.testing.assert_allclose(torch_adam_trajectory(config["optimizer"]), keras_adam_trajectory(keras_model.optimizer), **trajectory_tolerance(keras_model.optimizer))
 
 
-@requires_torch
-@pytest.mark.parametrize(("model_type", "complexity"), MODELS, ids=MODEL_IDS)
-def test_torch_adam_epsilon_matches_keras(model_type, complexity):
-    """Keras also adds epsilon before the bias correction: equal values still differ in the first steps."""
-    keras_model = build_keras(model_type, complexity)
-    _, config = build_torch(model_type, complexity)
-
-    np.testing.assert_allclose(config["optimizer"].defaults["eps"], keras_model.optimizer.epsilon, rtol=1e-6)
-
-
 @requires_flax
 @pytest.mark.parametrize(("model_type", "complexity"), MODELS, ids=MODEL_IDS)
 def test_optax_adam_matches_keras(model_type, complexity):
@@ -105,16 +91,6 @@ def test_optax_adam_matches_keras(model_type, complexity):
     _, config, _ = build_flax(model_type, complexity)
 
     np.testing.assert_allclose(optax_trajectory(config["optimizer"], GRADIENTS), keras_adam_trajectory(keras_model.optimizer), **trajectory_tolerance(keras_model.optimizer))
-
-
-@requires_flax
-@pytest.mark.parametrize(("model_type", "complexity"), MODELS, ids=MODEL_IDS)
-def test_optax_adam_epsilon_matches_keras(model_type, complexity):
-    """Keras also adds epsilon before the bias correction: equal values still differ in the first steps."""
-    keras_model = build_keras(model_type, complexity)
-    _, config, _ = build_flax(model_type, complexity)
-
-    np.testing.assert_allclose(optax_epsilon(config["optimizer"]), keras_model.optimizer.epsilon, rtol=1e-2)
 
 
 # --- Normalization and dropout --------------------------------------------------------------

@@ -4,6 +4,10 @@ import torch.nn.functional as F
 
 from utils.torch_utils import init_layer_weights
 
+# Same values in the three frameworks; torch weighs the new batch, Keras and Flax the running average
+BN_MOMENTUM = 0.01 # 0.99 in Keras and Flax
+BN_EPSILON = 1e-5
+
 class Block(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, kernel_initializer = "he_uniform"):
         super().__init__()
@@ -12,11 +16,11 @@ class Block(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=stride, bias=False)
         initialize(self.conv1)
-        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.bn1 = nn.BatchNorm2d(out_channels, eps=BN_EPSILON, momentum=BN_MOMENTUM)
         
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=1, bias=False)
         initialize(self.conv2)
-        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels, eps=BN_EPSILON, momentum=BN_MOMENTUM)
         
         self.downsample = None
         if stride > 1 or in_channels != out_channels:
@@ -52,7 +56,7 @@ class CNNComplex(nn.Module):
         conv = nn.Conv2d(3, starting_channels, kernel_size=3, padding=1, stride=1, bias=False)
         init_layer_weights(conv, kernel_initializer)
         layers.append(conv)
-        layers.append(nn.BatchNorm2d(starting_channels))
+        layers.append(nn.BatchNorm2d(starting_channels, eps=BN_EPSILON, momentum=BN_MOMENTUM))
         layers.append(nn.ReLU())
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
@@ -71,7 +75,10 @@ class CNNComplex(nn.Module):
         layers.append(nn.AdaptiveAvgPool2d(1)) # shape [batch_size, channels, 1, 1]
         layers.append(nn.Flatten()) # shape [batch_size, channels]
 
-        layers.append(nn.Linear(in_channels, 10))
+        # The output layer keeps the glorot of Keras' Dense, not the he_uniform of the convolutions
+        output = nn.Linear(in_channels, 10)
+        init_layer_weights(output, "glorot_uniform")
+        layers.append(output)
 
         self.model = nn.Sequential(*layers)
 

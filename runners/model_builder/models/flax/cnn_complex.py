@@ -3,6 +3,10 @@ from flax import linen as nn
 import jax.numpy as jnp
 from typing import Callable, Sequence, Optional
 
+# Same values in the three frameworks: Keras defaults to an epsilon of 1e-3
+BN_MOMENTUM = 0.99
+BN_EPSILON = 1e-5
+
 
 class Block(nn.Module):
     in_channels: int
@@ -27,7 +31,7 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm()(x, use_running_average=not training)
+        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
         x = nn.relu(x)
 
         x = nn.Conv(
@@ -39,7 +43,7 @@ class Block(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm()(x, use_running_average=not training)
+        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
 
         # Downsample si hace falta
         if self.stride > 1 or self.in_channels != self.out_channels:
@@ -81,7 +85,7 @@ class CNNComplex(nn.Module):
             dtype=self.dtype,
             param_dtype=self.param_dtype
         )(x)
-        x = nn.BatchNorm()(x, use_running_average=not training)
+        x = nn.BatchNorm(momentum=BN_MOMENTUM, epsilon=BN_EPSILON)(x, use_running_average=not training)
         x = nn.relu(x)
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
@@ -97,6 +101,6 @@ class CNNComplex(nn.Module):
 
         # Flatten and perform final prediction
         x = jnp.mean(x, axis=(1, 2))  # Global average pooling
-        x = nn.Dense(10, dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
+        x = nn.Dense(10, kernel_init=nn.initializers.glorot_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
 
         return x

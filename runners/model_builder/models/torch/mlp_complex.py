@@ -34,7 +34,9 @@ class MLPComplex(nn.Module):
                 input_size = units  # Next layer input size is current output
 
         # Output layer
-        layers.append(nn.Linear(final_units, 10))
+        output = nn.Linear(final_units, 10)
+        init_layer_weights(output, kernel_initializer)
+        layers.append(output)
 
         self.model = nn.Sequential(*layers)
 

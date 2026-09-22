@@ -33,12 +33,12 @@ class LSTMSimple(nn.Module):
         x = lstm2(x, initial_state=carry2)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
-        x = nn.Dense(self.cells // 2, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.Dense(self.cells // 2, kernel_init=nn.initializers.glorot_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x)
         x = nn.relu(x)
         x = nn.Dropout(self.dropout)(x, deterministic=not training)
 
         # Output (trip count)
-        x = nn.Dense(1, dtype=self.dtype, param_dtype=self.param_dtype)(x)
+        x = nn.Dense(1, kernel_init=nn.initializers.glorot_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x)
         x = nn.relu(x)
         
         return x
