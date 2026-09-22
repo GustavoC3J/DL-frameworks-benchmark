@@ -264,13 +264,14 @@ class FlaxModelBuilder(ModelBuilder):
     def _vit_complex(self):
         lr = 1e-4
 
+        # Build the model: narrower ViT-Base, kept to ~15M params to fit the training budget
         model = ViT(
             image_size=32,
             patch_size=4,
-            projection_dim=768,
-            num_heads=12,
+            projection_dim=320,
+            num_heads=5,
             transformer_layers=12,
-            mlp_dim=3072,
+            mlp_dim=1280,
             num_classes=100,
             dtype=self.dtype,
             param_dtype=self.param_dtype,
