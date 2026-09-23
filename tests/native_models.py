@@ -7,7 +7,7 @@ from functools import lru_cache
 
 import numpy as np
 
-from tests.helpers import is_classification, keras_reference, make_batch, on_gpu
+from tests.helpers import keras_reference, make_batch, on_gpu
 from tests.transplant import keras_to_flax, keras_to_torch
 from utils.precision import Precision, get_jmp_policy
 
@@ -59,14 +59,12 @@ def torch_loss_and_metric(model_type, model, config, x, y):
     return float(loss), float(metric)
 
 
-def torch_probabilities_or_outputs(model_type, model, x):
-    """Model outputs comparable with Keras: softmax over the logits in classification."""
+def torch_outputs(model, x):
+    """Raw model outputs: the three frameworks return logits in classification."""
     import torch
 
     with torch.no_grad():
         outputs = model(to_torch(x))
-        if is_classification(model_type):
-            outputs = torch.softmax(outputs, dim=-1)
 
     return outputs.cpu().numpy()
 
@@ -121,11 +119,5 @@ def flax_loss_and_metric(model, config, variables, x, y):
     return float(loss), float(metric)
 
 
-def flax_probabilities_or_outputs(model_type, model, variables, x):
-    import jax
-
-    outputs = model.apply(variables, x, training=False)
-    if is_classification(model_type):
-        outputs = jax.nn.softmax(outputs, axis=-1)
-
-    return np.asarray(outputs)
+def flax_outputs(model, variables, x):
+    return np.asarray(model.apply(variables, x, training=False))

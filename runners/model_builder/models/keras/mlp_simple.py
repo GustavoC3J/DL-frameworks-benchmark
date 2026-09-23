@@ -10,5 +10,5 @@ def mlp_simple(activation='relu', dropout_rate=0.2):
         layers.Dense(128, activation=activation, kernel_initializer="glorot_uniform"),
         layers.Dropout(dropout_rate),
         
-        layers.Dense(10, activation='softmax', kernel_initializer="glorot_uniform")
+        layers.Dense(10, kernel_initializer="glorot_uniform") # softmax is applied in loss function
     ])

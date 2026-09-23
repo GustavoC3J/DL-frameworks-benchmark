@@ -9,10 +9,10 @@ import pytest
 from tests.helpers import MODEL_IDS, MODELS, keras_reference, requires_flax, requires_torch
 from tests.native_models import (
     flax_loss_and_metric,
-    flax_probabilities_or_outputs,
+    flax_outputs,
     flax_with_keras_weights,
     torch_loss_and_metric,
-    torch_probabilities_or_outputs,
+    torch_outputs,
     torch_with_keras_weights,
 )
 
@@ -35,7 +35,7 @@ def test_torch_outputs_match_keras(model_type, complexity):
     reference = keras_reference(model_type, complexity)
     model, _ = torch_with_keras_weights(model_type, complexity)
 
-    outputs = torch_probabilities_or_outputs(model_type, model, reference["x"])
+    outputs = torch_outputs(model, reference["x"])
 
     np.testing.assert_allclose(outputs, reference["outputs"], **OUTPUT_TOLERANCE)
 
@@ -58,7 +58,7 @@ def test_flax_outputs_match_keras(model_type, complexity):
     reference = keras_reference(model_type, complexity)
     model, _, variables = flax_with_keras_weights(model_type, complexity)
 
-    outputs = flax_probabilities_or_outputs(model_type, model, variables, reference["x"])
+    outputs = flax_outputs(model, variables, reference["x"])
 
     np.testing.assert_allclose(outputs, reference["outputs"], **OUTPUT_TOLERANCE)
 

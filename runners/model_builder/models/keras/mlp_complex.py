@@ -52,10 +52,9 @@ class MLPComplex(keras.Model):
         self.model_layers.append(
             layers.Dense(
                 10,
-                activation="softmax",
                 kernel_initializer=kernel_initializer,
                 bias_initializer="zeros"
-            )
+            ) # softmax is applied in loss function
         )
 
         # Config for model saving

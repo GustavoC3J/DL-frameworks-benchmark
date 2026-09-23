@@ -21,5 +21,5 @@ def cnn_simple(activation='relu', dropout_rate=0.2):
         layers.Dropout(dropout_rate),
     
         # Output layer
-        layers.Dense(100, activation = "softmax", kernel_initializer="glorot_uniform")
+        layers.Dense(100, kernel_initializer="glorot_uniform") # softmax is applied in loss function
     ])

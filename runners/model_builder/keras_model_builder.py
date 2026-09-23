@@ -1,4 +1,5 @@
 
+from keras.losses import SparseCategoricalCrossentropy
 from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
@@ -11,6 +12,8 @@ from runners.model_builder.models.keras.mlp_simple import mlp_simple
 
 
 class KerasModelBuilder(ModelBuilder):
+    """The classification models output logits, as torch and Flax do: from probabilities, the
+    torch and JAX backends clip them to 1e-7 and the loss saturates, while TensorFlow's does not."""
 
     def _mlp_simple(self):
         activation = "relu"
@@ -22,7 +25,7 @@ class KerasModelBuilder(ModelBuilder):
         # Compile the model
         model.compile(
             optimizer = Adam(learning_rate = lr),             
-            loss = 'sparse_categorical_crossentropy',
+            loss = SparseCategoricalCrossentropy(from_logits=True),
             metrics = ['accuracy']
         )
 
@@ -44,7 +47,7 @@ class KerasModelBuilder(ModelBuilder):
         # Compile the model
         model.compile(
             optimizer = Adam(learning_rate = lr),             
-            loss = 'sparse_categorical_crossentropy',
+            loss = SparseCategoricalCrossentropy(from_logits=True),
             metrics = ['accuracy']
         )
 
@@ -61,7 +64,7 @@ class KerasModelBuilder(ModelBuilder):
         # Compile the model
         model.compile(
             optimizer = Adam(learning_rate = lr),             
-            loss = 'sparse_categorical_crossentropy',
+            loss = SparseCategoricalCrossentropy(from_logits=True),
             metrics = ['accuracy']
         )
 
@@ -81,7 +84,7 @@ class KerasModelBuilder(ModelBuilder):
         # Compile the model
         model.compile(
             optimizer = Adam(learning_rate = lr),             
-            loss = 'sparse_categorical_crossentropy',
+            loss = SparseCategoricalCrossentropy(from_logits=True),
             metrics = ['accuracy']
         )
 
