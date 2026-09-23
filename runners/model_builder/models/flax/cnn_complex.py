@@ -120,6 +120,6 @@ class CNNComplex(nn.Module):
 
         # Flatten and perform final prediction
         x = jnp.mean(x, axis=(1, 2))  # Global average pooling
-        x = nn.Dense(10, kernel_init=nn.initializers.glorot_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
+        x = nn.Dense(100, kernel_init=nn.initializers.glorot_uniform(), dtype=self.dtype, param_dtype=self.param_dtype)(x) # softmax is applied in loss function
 
         return x

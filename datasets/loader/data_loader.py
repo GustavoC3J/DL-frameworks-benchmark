@@ -13,7 +13,7 @@ DATASETS = {
 
 DEFAULT_DATASET = {
     "mlp": "fashion-mnist",
-    "cnn": "cifar10",
+    "cnn": "cifar100",
     "lstm": "yellow-taxi",
 }
 

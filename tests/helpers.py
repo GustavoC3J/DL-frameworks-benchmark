@@ -24,7 +24,7 @@ MODELS = [
 MODEL_IDS = [f"{model_type}-{complexity}" for model_type, complexity in MODELS]
 
 INPUT_SHAPES = {"mlp": (784,), "cnn": (32, 32, 3), "lstm": (144, 11)}
-NUM_CLASSES = {"mlp": 10, "cnn": 10}
+NUM_CLASSES = {"mlp": 10, "cnn": 100}
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".artifacts")
 

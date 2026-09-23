@@ -31,7 +31,7 @@ class CNNSimple(nn.Module):
             nn.Dropout(dropout),
 
             # Output layer
-            nn.Linear(128, 10)
+            nn.Linear(128, 100)
         )
 
         # Keras' default for Conv2D and Dense: torch draws kaiming uniform with a non-zero bias

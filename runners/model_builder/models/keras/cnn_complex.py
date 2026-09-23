@@ -99,7 +99,7 @@ class CNNComplex(keras.Model):
 
         # Flatten and perform final prediction
         self.model_layers.append(layers.GlobalAveragePooling2D())
-        self.model_layers.append(layers.Dense(10, activation="softmax", kernel_initializer="glorot_uniform"))
+        self.model_layers.append(layers.Dense(100, activation="softmax", kernel_initializer="glorot_uniform"))
 
 
         # Config for model saving

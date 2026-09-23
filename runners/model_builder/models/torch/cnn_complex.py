@@ -82,7 +82,7 @@ class CNNComplex(nn.Module):
         layers.append(nn.Flatten()) # shape [batch_size, channels]
 
         # The output layer keeps the glorot of Keras' Dense, not the he_uniform of the convolutions
-        output = nn.Linear(in_channels, 10)
+        output = nn.Linear(in_channels, 100)
         init_layer_weights(output, "glorot_uniform")
         layers.append(output)
 
