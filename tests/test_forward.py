@@ -6,7 +6,7 @@ same outputs (inference, fp32) and the same loss and metric on the canonical bat
 import numpy as np
 import pytest
 
-from tests.helpers import MODEL_IDS, MODELS, keras_reference, requires_flax, requires_torch, to_numpy
+from tests.helpers import MODEL_IDS, MODELS, keras_reference, requires_flax, requires_torch
 from tests.native_models import (
     flax_loss_and_metric,
     flax_probabilities_or_outputs,
@@ -27,20 +27,6 @@ def test_keras_reference_is_informative(model_type, complexity):
 
     assert np.all(np.isfinite(outputs))
     assert np.std(outputs, axis=0).max() > 1e-3
-
-
-@pytest.mark.parametrize("complexity", ["simple", "complex"])
-def test_vit_patches_match_keras_extract_patches(complexity):
-    """The ViTs cut the patches with reshapes; the Keras example uses extract_patches, which is a convolution."""
-    import keras
-
-    reference = keras_reference("vit", complexity)
-    patches = reference["model"].patches
-
-    expected = keras.ops.image.extract_patches(reference["x"], size=patches.patch_size)
-    expected = keras.ops.reshape(expected, (len(reference["x"]), -1, expected.shape[-1]))
-
-    np.testing.assert_allclose(to_numpy(patches(reference["x"])), to_numpy(expected), rtol=0, atol=1e-6)
 
 
 @requires_torch

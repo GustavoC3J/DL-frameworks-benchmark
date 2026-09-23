@@ -1,7 +1,7 @@
 """
 Keras -> torch and Keras -> Flax weight transplant.
 
-Parametric layers are paired by kind (dense, conv, bn, ln, lstm, mha, embedding, class_token) and in
+Parametric layers are paired by kind (dense, conv, bn, ln, lstm, mha, embedding) and in
 definition order, which is the same in the three frameworks. Each Keras layer is converted to
 the arrays the native layer should hold, so the same conversion serves the structure tests
 (shapes) and the forward tests (values).
@@ -11,7 +11,7 @@ import numpy as np
 
 from tests.helpers import to_numpy
 
-KINDS = ("dense", "conv", "bn", "ln", "lstm", "mha", "embedding", "class_token")
+KINDS = ("dense", "conv", "bn", "ln", "lstm", "mha", "embedding")
 
 
 # --- Keras side ----------------------------------------------------------------------------
@@ -37,8 +37,6 @@ def keras_parametric_layers(model):
     """
     import keras
 
-    from runners.model_builder.models.keras.vit import ClassToken
-
     kinds = {
         keras.layers.Dense: "dense",
         keras.layers.Conv2D: "conv",
@@ -47,7 +45,6 @@ def keras_parametric_layers(model):
         keras.layers.LSTM: "lstm",
         keras.layers.MultiHeadAttention: "mha",
         keras.layers.Embedding: "embedding",
-        ClassToken: "class_token",
     }
 
     layers = []
@@ -130,8 +127,6 @@ def torch_parametric_modules(model):
     """(kind, name, {tensor name: shape}, module) in registration order."""
     import torch.nn as nn
 
-    from runners.model_builder.models.torch.vit import ClassToken
-
     kinds = {
         nn.Linear: "dense",
         nn.Conv2d: "conv",
@@ -140,7 +135,6 @@ def torch_parametric_modules(model):
         nn.LSTM: "lstm",
         nn.MultiheadAttention: "mha",
         nn.Embedding: "embedding",
-        ClassToken: "class_token",
     }
     modules = []
 
@@ -202,9 +196,6 @@ def torch_arrays(kind, arrays, flatten_shape=None):
 
     if kind == "embedding":
         return {"weight": arrays["embeddings"]}
-
-    if kind == "class_token":
-        return {"token": arrays["class_token"]}
 
     raise ValueError(kind)
 
@@ -271,7 +262,6 @@ def flax_parametric_modules(model, variables, x):
     import flax.linen as nn
 
     from runners.model_builder.models.flax.lstm import LSTM
-    from runners.model_builder.models.flax.vit import ClassToken
 
     kinds = {
         nn.Dense: "dense",
@@ -281,7 +271,6 @@ def flax_parametric_modules(model, variables, x):
         LSTM: "lstm",
         nn.MultiHeadDotProductAttention: "mha",
         nn.Embed: "embedding",
-        ClassToken: "class_token",
     }
     modules = []
 
@@ -335,9 +324,6 @@ def flax_arrays(kind, arrays, flatten_shape=None):
 
     if kind == "embedding":
         return {"params/embedding": arrays["embeddings"]}
-
-    if kind == "class_token":
-        return {"params/token": arrays["class_token"]}
 
     raise ValueError(kind)
 

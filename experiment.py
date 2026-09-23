@@ -13,11 +13,6 @@ from utils.gpu_monitor import GPUMonitor
 from utils.precision import Precision
 
 
-# The ViT keeps the large batch of its paper, scaled down to what one GPU holds
-BATCH_SIZE = 64
-MODEL_BATCH_SIZE = {"vit": 512}
-
-
 def parse_params():
     parser = argparse.ArgumentParser()
 
@@ -29,17 +24,12 @@ def parse_params():
 
     # Optional params
     parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu-ids", type=str, default="2")
     parser.add_argument("--interval", type=float, default=1)
 
-    params = parser.parse_args()
-
-    if params.batch_size is None:
-        params.batch_size = MODEL_BATCH_SIZE.get(params.model_type, BATCH_SIZE)
-
-    return params
+    return parser.parse_args()
 
 def run_experiment(runner, params, output_directory, monitor):
 

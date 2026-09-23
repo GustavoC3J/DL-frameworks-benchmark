@@ -1,6 +1,6 @@
 # Equivalence tests
 
-The benchmark compares five backends, so the eight models have to be **the same model** in Keras,
+The benchmark compares five backends, so the six models have to be **the same model** in Keras,
 torch and Flax. This suite checks that: same architecture, same function, same hyperparameters,
 same initialization, same dtypes in every precision, and same gradients. It uses synthetic data, so
 no dataset is needed.
@@ -38,7 +38,7 @@ exactly the same ones without exchanging files.
 | File | Checks |
 |---|---|
 | `test_structure.py` | Parameter count (modulo torch's second LSTM bias), same layer types in the same order, compatible shapes, output shape |
-| `test_forward.py` | With the canonical weights transplanted: same outputs in inference, same loss and metric on the canonical batch, through each runner's evaluation path. Also that the ViT cuts the same patches as `keras.ops.image.extract_patches` |
+| `test_forward.py` | With the canonical weights transplanted: same outputs in inference, same loss and metric on the canonical batch, through each runner's evaluation path |
 | `test_keras_backends.py` | That `tf-keras`, `torch-keras` and `jax-keras` give the same outputs, loss and metric |
 | `test_hyperparams.py` | Adam: trajectory (learning rate, betas, bias correction). Momentum and epsilon of BatchNorm and LayerNorm, and dropout rates, attention included (and whether its dropout mask is shared across the batch, as Flax does by default). Adam's epsilon is declared different on purpose and left out, see below |
 | `test_init.py` | That every tensor a builder initializes follows the same distribution as its Keras counterpart (mean and standard deviation, with a tolerance that depends on its size) |

@@ -21,9 +21,6 @@ class ModelBuilder(ABC):
         elif self.model_type == "lstm":
             return self._lstm_simple() if self.model_complexity == "simple" else self._lstm_complex()
 
-        elif self.model_type == "vit":
-            return self._vit_simple() if self.model_complexity == "simple" else self._vit_complex()
-
 
     @abstractmethod
     def _mlp_simple(self):
@@ -47,12 +44,4 @@ class ModelBuilder(ABC):
 
     @abstractmethod
     def _lstm_complex(self):
-        pass
-
-    @abstractmethod
-    def _vit_simple(self):
-        pass
-
-    @abstractmethod
-    def _vit_complex(self):
         pass

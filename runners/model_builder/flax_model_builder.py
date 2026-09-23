@@ -11,7 +11,6 @@ from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
-from runners.model_builder.models.flax.vit import ViT
 from utils.jax_utils import accuracy, mae, mse, softmax_cross_entropy
 
 
@@ -222,82 +221,3 @@ class FlaxModelBuilder(ModelBuilder):
         }
 
         return model, config
-
-
-    def _vit_simple(self):
-        lr = 1e-4
-
-        model = ViT(
-            image_size=32,
-            patch_size=4,
-            projection_dim=192,
-            num_heads=3,
-            transformer_layers=6,
-            mlp_dim=768, # 4 times the projection, as in the paper
-            num_classes=100,
-            dtype=self.dtype,
-            param_dtype=self.param_dtype,
-            dropout=0.1,
-            attention_dropout=0.0
-        )
-
-        # Initial state. Without training, the dropout layers need no key
-        self.key, subkey = jax.random.split(self.key)
-        dummy_input = jnp.ones((1, 32, 32, 3))
-        params = model.init(subkey, dummy_input, training=False)['params']
-
-        # Optimizer
-        optimizer = optax.adam(lr)
-        opt_state = optimizer.init(params)
-
-        config = {
-            "params": params,
-            "optimizer": optimizer,
-            "opt_state": opt_state,
-            "loss_fn": softmax_cross_entropy,
-            "metric_fn": accuracy,
-            "metric_name": "accuracy"
-        }
-
-        return model, config
-
-
-    def _vit_complex(self):
-        lr = 1e-4
-
-        # Build the model: narrower ViT-Base, kept to ~15M params to fit the training budget
-        model = ViT(
-            image_size=32,
-            patch_size=4,
-            projection_dim=320,
-            num_heads=5,
-            transformer_layers=12,
-            mlp_dim=1280,
-            num_classes=100,
-            dtype=self.dtype,
-            param_dtype=self.param_dtype,
-            dropout=0.1,
-            attention_dropout=0.0
-        )
-
-        # Initial state. Without training, the dropout layers need no key
-        self.key, subkey = jax.random.split(self.key)
-        dummy_input = jnp.ones((1, 32, 32, 3))
-        params = model.init(subkey, dummy_input, training=False)['params']
-
-        # Optimizer
-        optimizer = optax.adam(lr)
-        opt_state = optimizer.init(params)
-
-        config = {
-            "params": params,
-            "optimizer": optimizer,
-            "opt_state": opt_state,
-            "loss_fn": softmax_cross_entropy,
-            "metric_fn": accuracy,
-            "metric_name": "accuracy"
-        }
-
-        return model, config
-
-

@@ -8,7 +8,6 @@ from runners.model_builder.models.keras.lstm_complex import lstm_complex
 from runners.model_builder.models.keras.lstm_simple import lstm_simple
 from runners.model_builder.models.keras.mlp_complex import MLPComplex
 from runners.model_builder.models.keras.mlp_simple import mlp_simple
-from runners.model_builder.models.keras.vit import ViT
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -123,57 +122,3 @@ class KerasModelBuilder(ModelBuilder):
         )
 
         return model
-
-
-    def _vit_simple(self):
-        lr = 1e-4
-
-        # Build the model
-        model = ViT(
-            image_size=32,
-            patch_size=4,
-            projection_dim=192,
-            num_heads=3,
-            transformer_layers=6,
-            mlp_dim=768, # 4 times the projection, as in the paper
-            num_classes=100,
-            dropout=0.1,
-            attention_dropout=0.0
-        )
-
-        # Compile the model
-        model.compile(
-            optimizer = Adam(learning_rate = lr),
-            loss = 'sparse_categorical_crossentropy',
-            metrics = ['accuracy']
-        )
-
-        return model
-
-
-    def _vit_complex(self):
-        lr = 1e-4
-
-        # Build the model: narrower ViT-Base, kept to ~15M params to fit the training budget
-        model = ViT(
-            image_size=32,
-            patch_size=4,
-            projection_dim=320,
-            num_heads=5,
-            transformer_layers=12,
-            mlp_dim=1280,
-            num_classes=100,
-            dropout=0.1,
-            attention_dropout=0.0
-        )
-
-        # Compile the model
-        model.compile(
-            optimizer = Adam(learning_rate = lr),
-            loss = 'sparse_categorical_crossentropy',
-            metrics = ['accuracy']
-        )
-
-        return model
-
-
