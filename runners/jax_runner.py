@@ -8,25 +8,24 @@ import keras
 import orbax.checkpoint
 from flax.training import checkpoints
 
-from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
+from utils.keras_utils import precompile
 from utils.precision import get_jmp_policy, get_keras_precision
 from utils.time_callback import TimeCallback
 
 
 class JaxRunner(Runner):
 
+    data_framework = "torch"
+
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
-        
-        # Dataloader
-        self.dl_factory = DataLoaderFactory("torch")
-        
+
         # Fix the seed
         self.key = jax.random.key(seed=self.seed)
 
@@ -64,6 +63,10 @@ class JaxRunner(Runner):
                 batch_stats=self.config.get("batch_stats", None),
                 loss_scale=self.loss_scale
             )
+
+            # Built once: a new wrapper would be traced and compiled again on every epoch
+            self.train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
+            self.eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
 
 
 
@@ -104,8 +107,6 @@ class JaxRunner(Runner):
             "epoch_time": []
         }
 
-        train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
-
         # Training start time
         start_time = time.time()
 
@@ -121,7 +122,7 @@ class JaxRunner(Runner):
                 batch_y = jnp.array(batch_y)
 
                 self.key, subkey = jax.random.split(self.key)
-                self.state, loss, metric = train_step(self.state, (batch_x, batch_y), subkey)
+                self.state, loss, metric = self.train_step(self.state, (batch_x, batch_y), subkey)
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
@@ -148,11 +149,34 @@ class JaxRunner(Runner):
             self.state = best_model_weights
         
         return history
-    
-    def train(self, trainX, validX, trainY, validY):
-        train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
-        val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
 
+
+    def __jax_precompile(self, train_batches, val_batches):
+
+        # The state is immutable and every step returns a new one, so keeping the reference
+        # is all it takes to undo the warm-up
+        state, key = self.state, self.key
+
+        for batch_x, batch_y in train_batches:
+            self.key, subkey = jax.random.split(self.key)
+            self.state, _, _ = self.train_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)), subkey)
+
+        jax.block_until_ready(self.state)
+
+        # Compiles eval_step, which validation and the test reuse
+        self.__jax_evaluate(val_batches, True)
+
+        self.state, self.key = state, key
+
+
+    def _precompile(self, train_batches, val_batches):
+        if self.keras:
+            precompile(self.model, train_batches, val_batches)
+        else:
+            self.__jax_precompile(train_batches, val_batches)
+
+
+    def _train(self, train_dl, val_dl):
         return self.__keras_train(train_dl, val_dl) if self.keras else self.__jax_train(train_dl, val_dl)
 
 
@@ -178,11 +202,9 @@ class JaxRunner(Runner):
         test_metric = 0
         num_batches = len(test_dl)
         
-        eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
-        
         start_time = time.time()
         for batch_x, batch_y in test_dl:
-            loss, metric = eval_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)))
+            loss, metric = self.eval_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)))
 
             test_loss += loss
             test_metric += metric

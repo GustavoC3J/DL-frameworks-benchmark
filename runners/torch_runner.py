@@ -5,11 +5,11 @@ import time
 import keras
 import torch
 
-from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
+from utils.keras_utils import precompile
 from utils.precision import get_keras_precision, get_torch_precision
 from utils.time_callback import TimeCallback
 from utils.torch_utils import adjust_outputs
@@ -17,13 +17,12 @@ from utils.torch_utils import adjust_outputs
 
 class TorchRunner(Runner):
 
+    data_framework = "torch"
+
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
 
-        # Dataloader
-        self.dl_factory = DataLoaderFactory("torch")
-        
         # GPU
         if len(self.gpu_ids) == 1:
             # It is always 0, independently of CUDA index
@@ -91,6 +90,52 @@ class TorchRunner(Runner):
         return history.history
     
 
+    def __torch_step(self, batch_x, batch_y):
+        """One training step: forward, backward and update.
+        
+        Shared by the training loop and the
+        warm-up, so both go through exactly the same path, AMP included."""
+
+        # Send data to GPU and set dtype
+        # If output has to be an integer, then batch_y dtype is not modified
+        batch_x = batch_x.to(device=self.device, dtype=self.dtype)
+        batch_y = batch_y.to(device=self.device, dtype=torch.int64 if batch_y.dtype == torch.int64 else self.dtype)
+
+        self.config["optimizer"].zero_grad()
+
+        if self.amp:
+            # Get outputs and loss using lower precision
+            with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
+                outputs = self.model(batch_x)
+
+                if self.model_type == "lstm":
+                    outputs = adjust_outputs(outputs, batch_y)
+
+                loss = self.config["loss_fn"](outputs, batch_y)
+                metric = self.config["metric_fn"](outputs, batch_y)
+
+            # Perform updates in higher precision
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.config["optimizer"])
+            self.scaler.update()
+
+        else:
+            # Get loss and perform updates using the same precision
+            outputs = self.model(batch_x)
+
+            if self.model_type == "lstm":
+                outputs = adjust_outputs(outputs, batch_y)
+
+            loss = self.config["loss_fn"](outputs, batch_y)
+            metric = self.config["metric_fn"](outputs, batch_y)
+
+            loss.backward()
+            self.config["optimizer"].step()
+
+        # Kept on the GPU and read once per epoch to avoid a synchronization per batch
+        return loss.detach().float(), metric.detach().float()
+
+
     def __torch_train(self, train_dl, val_dl):
 
         metric_name = self.config["metric_name"]
@@ -120,46 +165,10 @@ class TorchRunner(Runner):
             self.model.train()
             
             for batch_x, batch_y in train_dl:
-                # Send data to GPU and set dtype
-                # If output has to be an integer, then batch_y dtype is not modified
-                batch_x = batch_x.to(device=self.device, dtype=self.dtype)
-                batch_y = batch_y.to(device=self.device, dtype=torch.int64 if batch_y.dtype == torch.int64 else self.dtype)
+                loss, metric = self.__torch_step(batch_x, batch_y)
 
-                self.config["optimizer"].zero_grad()
-
-                if self.amp:
-                    # Get outputs and loss using lower precision
-                    with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
-                        outputs = self.model(batch_x)
-
-                        if self.model_type == "lstm":
-                            outputs = adjust_outputs(outputs, batch_y)
-
-                        loss = self.config["loss_fn"](outputs, batch_y)
-                        metric = self.config["metric_fn"](outputs, batch_y)
-                        
-                    # Perform updates in higher precision
-                    self.scaler.scale(loss).backward()
-                    self.scaler.step(self.config["optimizer"])
-                    self.scaler.update()
-                        
-                else:
-                    # Get loss and perform updates using the same precision
-                    outputs = self.model(batch_x)
-                    
-                    if self.model_type == "lstm":
-                        outputs = adjust_outputs(outputs, batch_y)
-
-                    loss = self.config["loss_fn"](outputs, batch_y)
-                    metric = self.config["metric_fn"](outputs, batch_y)
-
-                    loss.backward()
-                    self.config["optimizer"].step()
-
-
-                # Kept on the GPU and read once per epoch to avoid a synchronization per batch
-                train_losses.append(loss.detach().float())
-                train_metrics.append(metric.detach().float())
+                train_losses.append(loss)
+                train_metrics.append(metric)
 
             # Validation
             val_loss, val_metric, _ = self.__torch_evaluate(val_dl, True)
@@ -187,10 +196,44 @@ class TorchRunner(Runner):
         return history
 
 
-    def train(self, trainX, validX, trainY, validY):
-        train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
-        val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
+    def __torch_precompile(self, train_batches, val_batches):
 
+        # Kept to restore it once the kernels are warmed up
+        model_state = copy.deepcopy(self.model.state_dict())
+        optimizer_state = copy.deepcopy(self.config["optimizer"].state_dict())
+        scaler_state = copy.deepcopy(self.scaler.state_dict()) if self.amp else None
+        cuda_rng_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None # Dropout draws from it
+
+        self.model.train()
+        for batch_x, batch_y in train_batches:
+            self.__torch_step(batch_x, batch_y)
+
+        # Evaluation path: forward only, under no_grad
+        self.__torch_evaluate(val_batches, True)
+
+        # Wait for the GPU before the caller stops its timer
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        # Undo everything the steps above changed
+        self.model.load_state_dict(model_state)
+        self.config["optimizer"].load_state_dict(optimizer_state)
+
+        if self.amp:
+            self.scaler.load_state_dict(scaler_state)
+
+        if cuda_rng_state is not None:
+            torch.cuda.set_rng_state_all(cuda_rng_state)
+
+
+    def _precompile(self, train_batches, val_batches):
+        if self.keras:
+            precompile(self.model, train_batches, val_batches)
+        else:
+            self.__torch_precompile(train_batches, val_batches)
+
+
+    def _train(self, train_dl, val_dl):
         train_fn = self.__keras_train if self.keras else self.__torch_train
 
         return train_fn(train_dl, val_dl)

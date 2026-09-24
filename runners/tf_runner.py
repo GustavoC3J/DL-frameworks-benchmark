@@ -2,23 +2,22 @@
 import keras
 import tensorflow as tf
 
-from datasets.loader.data_loader_factory import DataLoaderFactory
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
+from utils.keras_utils import precompile
 from utils.precision import get_keras_precision
 from utils.time_callback import TimeCallback
 
 
 class TFRunner(Runner):
 
+    data_framework = "tf"
+
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
 
-        # Dataloader
-        self.dl_factory = DataLoaderFactory("tf")
-        
         # Fix the seed
         tf.random.set_seed(self.seed)
 
@@ -40,10 +39,11 @@ class TFRunner(Runner):
 
 
 
-    def train(self, trainX, validX, trainY, validY):
-        train_dl = self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True)
-        val_dl = self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
+    def _precompile(self, train_batches, val_batches):
+        precompile(self.model, train_batches, val_batches)
 
+
+    def _train(self, train_dl, val_dl):
         # The best weights are kept in GPU memory and restored at the end of fit
         callbacks = [
             BestWeightsCallback(),

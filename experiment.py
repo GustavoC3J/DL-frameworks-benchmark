@@ -53,6 +53,12 @@ def run_experiment(runner, params, output_directory, monitor):
     data_loader = DataLoader(params.model_type, params.seed)
     formatted_data = data_loader.load_data("train")
 
+    # Compile the graphs and warm up the kernels before measuring, so the training time
+    # does not include one-off compilation costs
+    start = time.time()
+    runner.precompile(*formatted_data)
+    precompile_time = time.time() - start
+
     # Start training
     start = time.time()
     monitor.start(train_samples_filepath, start)
@@ -96,6 +102,7 @@ def run_experiment(runner, params, output_directory, monitor):
         'seed': params.seed,
         'gpu_ids': params.gpu_ids,
         'definition_time': definition_time,  
+        'precompile_time': precompile_time,
         'training_time': training_time,
         'saving_time': saving_time,
         'testing_time': testing_time,  
