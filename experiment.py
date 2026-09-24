@@ -17,7 +17,7 @@ def parse_params():
     parser = argparse.ArgumentParser()
 
     # Required params
-    parser.add_argument("backend", type=str)
+    parser.add_argument("backend", type=str, choices=["tf-keras", "torch-keras", "jax-keras", "torch", "jax"])
     parser.add_argument("model_type", type=str)
     parser.add_argument("model_complexity", type=str)
     parser.add_argument("precision", type=Precision, choices=list(Precision))
@@ -128,85 +128,52 @@ if __name__ == "__main__":
     # Set GPUs to use
     os.environ["CUDA_VISIBLE_DEVICES"] = params.gpu_ids
     
-    # backend is the library used follow by "-keras" if Keras is used
-    segments = params.backend.split("-", 1)
+    runner_params = dict(
+        model_type = params.model_type,
+        model_complexity = params.model_complexity,
+        epochs = params.epochs,
+        batch_size = params.batch_size,
+        seed = params.seed,
+        gpu_ids = params.gpu_ids,
+        precision = params.precision
+    )
 
-    library = segments[0]
-    use_keras = len(segments) > 1 and segments[1] == "keras"
+    # Imported only here, once CUDA_VISIBLE_DEVICES is set
+    if params.backend.endswith("-keras"):
+        from runners.keras_runner import KerasRunner
+        runner = KerasRunner(backend=params.backend, **runner_params)
 
-    if (use_keras):
-        import keras
-        keras.utils.set_random_seed(params.seed)
-
-    # Load the corresponding runner
-    if library == "tf":
-        from runners.tf_runner import TFRunner
-
-        runner = TFRunner(
-            model_type = params.model_type,
-            model_complexity = params.model_complexity,
-            keras = use_keras,
-            epochs = params.epochs,
-            batch_size=params.batch_size,
-            seed = params.seed,
-            gpu_ids = params.gpu_ids,
-            precision = params.precision
-        )
-
-    elif library == "torch":
+    elif params.backend == "torch":
         from runners.torch_runner import TorchRunner
+        runner = TorchRunner(**runner_params)
 
-        runner = TorchRunner(
-            model_type = params.model_type,
-            model_complexity = params.model_complexity,
-            keras = use_keras,
-            epochs = params.epochs,
-            batch_size=params.batch_size,
-            seed = params.seed,
-            gpu_ids = params.gpu_ids,
-            precision = params.precision
-        )
-        
-    elif library == "jax":
-        from runners.jax_runner import JaxRunner
-
-        runner = JaxRunner(
-            model_type = params.model_type,
-            model_complexity = params.model_complexity,
-            keras = use_keras,
-            epochs = params.epochs,
-            batch_size=params.batch_size,
-            seed = params.seed,
-            gpu_ids = params.gpu_ids,
-            precision = params.precision
-        )
     else:
-        print("Error: Unknown library")
+        from runners.jax_runner import JaxRunner
+        runner = JaxRunner(**runner_params)
 
-    if runner:
-        # Create output directory
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
-        os.makedirs(output_directory, exist_ok=True)
+    # Create output directory
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
+    os.makedirs(output_directory, exist_ok=True)
+    
+    monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
+
+    try:
+        run_experiment(runner, params, output_directory, monitor)
+    except Exception as e:
+        # Clean traceback routes and save to file
+        tb_lines = traceback.format_exc().splitlines()
+        cleaned_lines = []
         
-        monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
-
-        try:
-            run_experiment(runner, params, output_directory, monitor)
-        except Exception as e:
-            # Clean traceback routes and save to file
-            tb_lines = traceback.format_exc().splitlines()
-            cleaned_lines = []
+        for line in tb_lines:
+            if line.strip().startswith('File'):
+                parts = line.split('"')
+                if len(parts) >= 3:
+                    filename = os.path.basename(parts[1])
+                    line = line.replace(parts[1], filename)
+            cleaned_lines.append(line)
             
-            for line in tb_lines:
-                if line.strip().startswith('File'):
-                    parts = line.split('"')
-                    if len(parts) >= 3:
-                        filename = os.path.basename(parts[1])
-                        line = line.replace(parts[1], filename)
-                cleaned_lines.append(line)
-                
-            with open(output_directory + "/error.txt", "a") as f:
-                f.write("\n".join(cleaned_lines))
+        with open(output_directory + "/error.txt", "a") as f:
+            f.write("\n".join(cleaned_lines))
 
-            monitor.stop()
+        monitor.stop()

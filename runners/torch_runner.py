@@ -2,16 +2,11 @@
 import copy
 import time
 
-import keras
 import torch
 
-from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
-from utils.best_weights_callback import BestWeightsCallback
-from utils.keras_utils import precompile
-from utils.precision import get_keras_precision, get_torch_precision
-from utils.time_callback import TimeCallback
+from utils.precision import get_torch_precision
 from utils.torch_utils import adjust_outputs
 
 
@@ -23,74 +18,29 @@ class TorchRunner(Runner):
 
         super().__init__(**kwargs)
 
-        # GPU
-        if len(self.gpu_ids) == 1:
-            # It is always 0, independently of CUDA index
-            self.device = torch.device(f"cuda:0")
-        else:
-            raise NotImplementedError()
-        
-        # Fix the seed
+        # It is always 0, independently of CUDA index
+        self.device = torch.device("cuda:0")
+
+        # Fix the seed: weight initialization and dropout
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed_all(self.seed)
 
         # Set global floating point precision
-        self.__set_precision()
+        self.dtype, self.amp_dtype = get_torch_precision(self.precision)
+        self.amp = self.amp_dtype is not None # AMP = Automatic Mixed Precision
 
-    
-    def __set_precision(self):
-        if (self.keras):
-            keras.config.set_dtype_policy(get_keras_precision(self.precision))
+        if self.amp:
+            self.scaler = torch.amp.GradScaler()
 
-        else:
-            self.dtype, self.amp_dtype = get_torch_precision(self.precision)
-            self.amp = self.amp_dtype is not None # AMP = Automatic Mixed Precision
 
-            if self.amp:
-                self.scaler = torch.amp.GradScaler()
-
-    
     def define_model(self):
+        self.model, self.config = TorchModelBuilder(self.model_type, self.model_complexity).build()
 
-        if (self.keras):
-            self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()        
-        else:
-            self.model, self.config = TorchModelBuilder(self.model_type, self.model_complexity).build()
-
-        
-        # Move the model to the GPU and set it's precision
-        if (not self.keras):
-            self.model.to(device=self.device, dtype=self.dtype)
-
-        # If there are multiple GPUs, 
-        #if len(self.gpus) > 1:
-            #self.model = torch.nn.DistributedDataParallel(self.model, device_ids=self.gpus)
+        # Move the model to the GPU and set its precision
+        self.model.to(device=self.device, dtype=self.dtype)
 
 
-
-    def __keras_train(self, train_dl, val_dl):
-
-        # The best weights are kept in GPU memory and restored at the end of fit
-        callbacks = [
-            BestWeightsCallback(),
-            TimeCallback()
-        ]
-
-        # Train the model
-        history = self.model.fit(
-            train_dl,
-            validation_data = val_dl,
-            epochs = self.epochs,
-            callbacks=callbacks
-        )
-
-        # Add epoch times
-        history.history["epoch_time"] = callbacks[1].times
-    
-        return history.history
-    
-
-    def __torch_step(self, batch_x, batch_y):
+    def __train_step(self, batch_x, batch_y):
         """One training step: forward, backward and update.
         
         Shared by the training loop and the
@@ -136,7 +86,7 @@ class TorchRunner(Runner):
         return loss.detach().float(), metric.detach().float()
 
 
-    def __torch_train(self, train_dl, val_dl):
+    def _train(self, train_dl, val_dl):
 
         metric_name = self.config["metric_name"]
         best_model_weights = None
@@ -165,13 +115,13 @@ class TorchRunner(Runner):
             self.model.train()
             
             for batch_x, batch_y in train_dl:
-                loss, metric = self.__torch_step(batch_x, batch_y)
+                loss, metric = self.__train_step(batch_x, batch_y)
 
                 train_losses.append(loss)
                 train_metrics.append(metric)
 
             # Validation
-            val_loss, val_metric, _ = self.__torch_evaluate(val_dl, True)
+            val_loss, val_metric, _ = self.__evaluate(val_dl, True)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -196,20 +146,21 @@ class TorchRunner(Runner):
         return history
 
 
-    def __torch_precompile(self, train_batches, val_batches):
+    def _precompile(self, train_batches, val_batches):
 
-        # Kept to restore it once the kernels are warmed up
+        # Kept to restore it once the kernels are warmed up. Dropout draws from the RNG states
         model_state = copy.deepcopy(self.model.state_dict())
         optimizer_state = copy.deepcopy(self.config["optimizer"].state_dict())
         scaler_state = copy.deepcopy(self.scaler.state_dict()) if self.amp else None
-        cuda_rng_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None # Dropout draws from it
+        rng_state = torch.get_rng_state()
+        cuda_rng_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
 
         self.model.train()
         for batch_x, batch_y in train_batches:
-            self.__torch_step(batch_x, batch_y)
+            self.__train_step(batch_x, batch_y)
 
         # Evaluation path: forward only, under no_grad
-        self.__torch_evaluate(val_batches, True)
+        self.__evaluate(val_batches, True)
 
         # Wait for the GPU before the caller stops its timer
         if torch.cuda.is_available():
@@ -222,35 +173,17 @@ class TorchRunner(Runner):
         if self.amp:
             self.scaler.load_state_dict(scaler_state)
 
+        torch.set_rng_state(rng_state)
+
         if cuda_rng_state is not None:
             torch.cuda.set_rng_state_all(cuda_rng_state)
 
 
-    def _precompile(self, train_batches, val_batches):
-        if self.keras:
-            precompile(self.model, train_batches, val_batches)
-        else:
-            self.__torch_precompile(train_batches, val_batches)
-
-
-    def _train(self, train_dl, val_dl):
-        train_fn = self.__keras_train if self.keras else self.__torch_train
-
-        return train_fn(train_dl, val_dl)
-
-
     def save(self, path):
-        if self.keras:
-            self.model.save(path + "/model.keras")
-        else:
-            torch.save(self.model.state_dict(), path + f'/{self.best_epoch:02d}_model.pt')
+        torch.save(self.model.state_dict(), path + f'/{self.best_epoch:02d}_model.pt')
 
 
-    def __keras_evaluate(self, test_dl):
-        return self.model.evaluate(test_dl)
-    
-
-    def __torch_evaluate(self, test_dl, val = False):
+    def __evaluate(self, test_dl, val = False):
 
         losses = []
         metrics = []
@@ -303,13 +236,11 @@ class TorchRunner(Runner):
         )
 
 
-    
+
     def evaluate(self, testX, testY):
         test_dl = self.dl_factory.fromNumpy(testX, testY, self.batch_size, shuffle=False)
 
-        evaluate_fn = self.__keras_evaluate if self.keras else self.__torch_evaluate
-
-        return evaluate_fn(test_dl)
+        return self.__evaluate(test_dl)
 
 
 

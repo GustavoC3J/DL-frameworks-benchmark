@@ -4,18 +4,13 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
-import keras
 import orbax.checkpoint
 from flax.training import checkpoints
 
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
-from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
-from utils.best_weights_callback import BestWeightsCallback
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
-from utils.keras_utils import precompile
-from utils.precision import get_jmp_policy, get_keras_precision
-from utils.time_callback import TimeCallback
+from utils.precision import get_jmp_policy
 
 
 class JaxRunner(Runner):
@@ -30,70 +25,32 @@ class JaxRunner(Runner):
         self.key = jax.random.key(seed=self.seed)
 
         # Set GPUs
-        if len(self.gpu_ids) > 1:
-            raise NotImplementedError("Multiple GPU training is not implemented")
-        elif len(self.gpu_ids) == 1:
+        if len(self.gpu_ids) == 1:
             jax.config.update("jax_default_device", jax.devices("gpu")[0])
 
         # Set global floating point precision
-        self.__set_precision()
-        
-    
-    def __set_precision(self):
-        if (self.keras):
-            keras.config.set_dtype_policy(get_keras_precision(self.precision))
+        self.policy, self.loss_scale = get_jmp_policy(self.precision)
 
-        else:
-            self.policy, self.loss_scale = get_jmp_policy(self.precision)
 
-    
     def define_model(self):
+        self.key, subkey = jax.random.split(self.key)
+        self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey, self.policy).build()
 
-        if self.keras:
-            self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
-        else:
-            self.key, subkey = jax.random.split(self.key)
-            self.model, self.config = FlaxModelBuilder(self.model_type, self.model_complexity, subkey, self.policy).build()
-
-            # Set up the state using the model and cofiguration
-            self.state = TrainState.create(
-                apply_fn=self.model.apply,
-                params=self.config["params"],
-                tx=self.config["optimizer"],
-                batch_stats=self.config.get("batch_stats", None),
-                loss_scale=self.loss_scale
-            )
-
-            # Built once: a new wrapper would be traced and compiled again on every epoch
-            self.train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
-            self.eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
-
-
-
-    def __keras_train(self, train_dl, val_dl):
-        # Training using Keras
-
-        # The best weights are kept in GPU memory and restored at the end of fit
-        callbacks = [
-            BestWeightsCallback(),
-            TimeCallback()
-        ]
-        
-        history = self.model.fit(
-            train_dl,
-            validation_data = val_dl,
-            epochs = self.epochs,
-            callbacks=callbacks
+        # Set up the state using the model and cofiguration
+        self.state = TrainState.create(
+            apply_fn=self.model.apply,
+            params=self.config["params"],
+            tx=self.config["optimizer"],
+            batch_stats=self.config.get("batch_stats", None),
+            loss_scale=self.loss_scale
         )
 
-        # Add epoch times
-        history.history["epoch_time"] = callbacks[1].times
-    
-        return history.history
+        # Built once: a new wrapper would be traced and compiled again on every epoch
+        self.train_step = make_train_step(self.config["loss_fn"], self.config["metric_fn"])
+        self.eval_step = make_eval_step(self.config["loss_fn"], self.config["metric_fn"])
 
 
-    def __jax_train(self, train_dl, val_dl):
-        # Training loop using JAX
+    def _train(self, train_dl, val_dl):
         
         metric_name = self.config["metric_name"]
         best_model_weights = None
@@ -128,7 +85,7 @@ class JaxRunner(Runner):
 
 
             # Validation
-            val_loss, val_metric, _ = self.__jax_evaluate(val_dl, True)
+            val_loss, val_metric, _ = self.__evaluate(val_dl, True)
 
             # Save best model
             if val_loss < best_val_loss:
@@ -151,7 +108,7 @@ class JaxRunner(Runner):
         return history
 
 
-    def __jax_precompile(self, train_batches, val_batches):
+    def _precompile(self, train_batches, val_batches):
 
         # The state is immutable and every step returns a new one, so keeping the reference
         # is all it takes to undo the warm-up
@@ -164,39 +121,21 @@ class JaxRunner(Runner):
         jax.block_until_ready(self.state)
 
         # Compiles eval_step, which validation and the test reuse
-        self.__jax_evaluate(val_batches, True)
+        self.__evaluate(val_batches, True)
 
         self.state, self.key = state, key
 
 
-    def _precompile(self, train_batches, val_batches):
-        if self.keras:
-            precompile(self.model, train_batches, val_batches)
-        else:
-            self.__jax_precompile(train_batches, val_batches)
-
-
-    def _train(self, train_dl, val_dl):
-        return self.__keras_train(train_dl, val_dl) if self.keras else self.__jax_train(train_dl, val_dl)
-
-
     def save(self, path):
-        if self.keras:
-            self.model.save(path + "/model.keras")
-        else:
-            checkpoints.save_checkpoint(
-                Path(path).absolute(),
-                self.state.replace(loss_scale=None), # Not needed anymore, and it's incompatible with checkpointing
-                0,
-                orbax_checkpointer=orbax.checkpoint.PyTreeCheckpointer()
-            )
+        checkpoints.save_checkpoint(
+            Path(path).absolute(),
+            self.state.replace(loss_scale=None), # Not needed anymore, and it's incompatible with checkpointing
+            0,
+            orbax_checkpointer=orbax.checkpoint.PyTreeCheckpointer()
+        )
 
 
-    def __keras_evaluate(self, test_dl):
-        return self.model.evaluate(test_dl)
-    
-
-    def __jax_evaluate(self, test_dl, val = False):
+    def __evaluate(self, test_dl, val = False):
 
         test_loss = 0
         test_metric = 0
@@ -227,7 +166,7 @@ class JaxRunner(Runner):
     def evaluate(self, testX, testY):
         test_dl = self.dl_factory.fromNumpy(testX, testY, self.batch_size, shuffle=False)
 
-        return self.__keras_evaluate(test_dl) if self.keras else self.__jax_evaluate(test_dl)
+        return self.__evaluate(test_dl)
         
 
 

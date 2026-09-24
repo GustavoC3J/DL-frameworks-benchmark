@@ -14,15 +14,18 @@ class Runner(ABC):
     # Batches each graph is warmed up with before the measured training starts
     PRECOMPILE_STEPS = 2
 
-    def __init__(self, model_type, model_complexity, keras, epochs, batch_size, seed, gpu_ids, precision):
+    def __init__(self, model_type, model_complexity, epochs, batch_size, seed, gpu_ids, precision):
 
         self.model_type = model_type
-        self.keras = keras
         self.model_complexity = model_complexity
         self.epochs = epochs
         self.batch_size = batch_size
         self.gpu_ids = [int(gpu) for gpu in gpu_ids.split(",") if gpu.isdigit()]
         self.precision = precision
+
+        # Multi-GPU is not supported
+        if len(self.gpu_ids) > 1:
+            raise NotImplementedError("Only a single GPU is supported")
 
         self.dl_factory = DataLoaderFactory(self.data_framework)
         self.__loaders = None
@@ -32,18 +35,13 @@ class Runner(ABC):
         random.seed(seed) # Python
         np.random.seed(seed) # NumPy/Pandas
 
-        if self.data_framework == "torch":
-            # The DataLoader shuffles with torch's global generator, seeded at random otherwise
-            import torch
-            torch.manual_seed(seed)
-
 
     def _loaders(self, trainX, validX, trainY, validY):
         """Training and validation loaders, built once so the warm-up and the training that
         follows it go through the very same pipeline."""
         if self.__loaders is None:
             self.__loaders = (
-                self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True),
+                self.dl_factory.fromNumpy(trainX, trainY, self.batch_size, shuffle=True, seed=self.seed),
                 self.dl_factory.fromNumpy(validX, validY, self.batch_size, shuffle=False)
             )
 
@@ -69,42 +67,17 @@ class Runner(ABC):
         return batches
 
 
-    def __rng_state(self):
-        """The random streams shared by the whole process. The loaders draw from them to shuffle,
-        so the warm-up has to leave them exactly where the training expects them."""
-        state = {"python": random.getstate(), "numpy": np.random.get_state()}
-
-        if self.data_framework == "torch":
-            import torch
-            state["torch"] = torch.get_rng_state()
-
-        return state
-
-
-    def __restore_rng(self, state):
-        random.setstate(state["python"])
-        np.random.set_state(state["numpy"])
-
-        if "torch" in state:
-            import torch
-            torch.set_rng_state(state["torch"])
-
-
     def precompile(self, trainX, validX, trainY, validY):
         """Runs a few training and evaluation steps so the framework compiles its graphs and warms
         up its kernels before the measured training starts.
 
-        Weights, optimizer state and random streams are restored afterwards, so the training that
-        follows is exactly the one that would have run without warming up.
+        Each runner restores afterwards whatever its steps changed (weights, optimizer state and
+        random streams), so the training that follows is the one that would have run without it.
         """
         # Built here, so their one-off cost lands outside the measured training too
         self._loaders(trainX, validX, trainY, validY)
 
-        rng_state = self.__rng_state()
-
         self._precompile(self.__warmup_batches(trainX, trainY), self.__warmup_batches(validX, validY))
-
-        self.__restore_rng(rng_state)
 
 
     def train(self, trainX, validX, trainY, validY):
