@@ -42,7 +42,7 @@ exactly the same ones without exchanging files.
 | `test_keras_backends.py` | That `tf-keras`, `torch-keras` and `jax-keras` give the same outputs, loss and metric |
 | `test_hyperparams.py` | Adam: trajectory (learning rate, betas, bias correction). Momentum and epsilon of BatchNorm and LayerNorm, and dropout rates, attention included (and whether its dropout mask is shared across the batch, as Flax does by default). Adam's epsilon is declared different on purpose and left out, see below |
 | `test_init.py` | That every tensor a builder initializes follows the same distribution as its Keras counterpart (mean and standard deviation, with a tolerance that depends on its size) |
-| `test_precision.py` | For the five precisions: dtype of the parameters, declared compute dtype, and dtype of the outputs and the loss |
+| `test_precision.py` | For the five precisions: dtype of the parameters, declared compute dtype, and dtype of the outputs and the loss, and of each LSTM layer's output in Flax |
 | `test_train_step.py` | One SGD step with learning rate 1, which exposes the gradient: same loss, same gradients (compared at the scale of their layer) and same BatchNorm statistics |
 
 And the scaffolding: `conftest.py` (device, seeds, dtype policy), `helpers.py` (model grid,

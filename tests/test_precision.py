@@ -174,3 +174,36 @@ def test_flax_output_and_loss_dtypes_match_keras(model_type, complexity, precisi
 
     assert dtype_name(outputs.dtype) == dtype_name(keras_outputs.dtype), "outputs"
     assert dtype_name(loss.dtype) == dtype_name(keras_loss.dtype), "loss"
+
+
+LSTM_CASES = [case for case in CASES if case[0] == "lstm"]
+LSTM_CASE_IDS = [case_id for case, case_id in zip(CASES, CASE_IDS) if case[0] == "lstm"]
+
+
+@requires_flax
+@pytest.mark.parametrize(("model_type", "complexity", "precision"), LSTM_CASES, ids=LSTM_CASE_IDS)
+def test_flax_lstm_output_dtypes_match_keras(model_type, complexity, precision):
+    """A float32 state keeps the recurrence in float32 even under a float16 policy, and the
+    Dense layers that follow cast it back, so the model's output does not show it."""
+    import keras
+
+    from runners.model_builder.models.flax.lstm import LSTM
+
+    reference = keras_model(model_type, complexity, precision)
+    model, _, variables = build_flax(model_type, complexity, precision=precision)
+    x, _ = make_batch(model_type, batch_size=2)
+
+    keras_dtypes, outputs = [], x
+    for layer in reference.layers:
+        outputs = layer(outputs, training=False)
+        if isinstance(layer, keras.layers.LSTM):
+            keras_dtypes.append(dtype_name(outputs.dtype))
+
+    _, state = model.apply(
+        variables, x, training=False,
+        capture_intermediates=lambda module, _: isinstance(module, LSTM),
+        mutable=["intermediates"]
+    )
+    flax_dtypes = [dtype_name(calls["__call__"][0].dtype) for calls in state["intermediates"].values()]
+
+    assert flax_dtypes == keras_dtypes

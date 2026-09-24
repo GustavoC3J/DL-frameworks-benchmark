@@ -51,14 +51,13 @@ class LSTM(nn.Module):
     param_dtype: Dtype = jnp.float32
 
     @nn.compact
-    def __call__(self, x: Array, initial_state: Tuple[Array, Array]):
+    def __call__(self, x: Array, initial_state: Optional[Tuple[Array, Array]] = None):
         """ 
         x: (batch, time, input_dim)
-        initial_state: (h, c), both (batch, features)
+        initial_state: (h, c), both (batch, features), zeros if None
         Returns: 
-            (batch, time, features), h, c  if return_sequences and return_state
-            (batch, time, features)        if return_sequences
-            (h, c)                         if not return_sequences and return_state
+            outputs, h, c  if return_state (as Keras)
+            outputs        otherwise, (batch, time, features) or (batch, features) without return_sequences
         """
         lstm_cell = nn.OptimizedLSTMCell(
             self.features,
@@ -68,18 +67,27 @@ class LSTM(nn.Module):
             param_dtype=self.param_dtype
         )
 
+        # The cell only casts its matmuls: a float32 state would keep the whole recurrence in float32
+        dtype = self.dtype or x.dtype
+
+        if initial_state is None:
+            h = c = jnp.zeros((x.shape[0], self.features), dtype)
+        else:
+            h, c = (state.astype(dtype) for state in initial_state)
+
         # Apply cell to each step of the temporal window        
         def body_fn(cell, carry, x):
             carry, y = cell(carry, x)
             return carry, y
 
-        (last_h, last_c), outputs = nn.scan(
+        # Flax's carry is (c, h), the reverse of Keras
+        (last_c, last_h), outputs = nn.scan(
             body_fn,
             variable_broadcast="params",
             split_rngs={'params': False},
             in_axes=1, out_axes=1,  # along temporal axis
             length=x.shape[1],
-        )(lstm_cell, initial_state, x)
+        )(lstm_cell, (c, h), x)
 
         # Return only the last temporal output if not returning sequences
         if not self.return_sequences:

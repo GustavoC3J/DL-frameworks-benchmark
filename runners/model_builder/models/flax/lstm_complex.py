@@ -1,5 +1,4 @@
 import flax.linen as nn
-import jax.numpy as jnp
 
 from runners.model_builder.models.flax.lstm import LSTM
 
@@ -17,21 +16,12 @@ class LSTMComplex(nn.Module):
     @nn.compact
     def __call__(self, x, training):
 
-        def zero_carry(batch_size, hidden_size):
-            # estado oculto (h), estado de celda (c)
-            return (
-                jnp.zeros((batch_size, hidden_size), dtype=x.dtype),
-                jnp.zeros((batch_size, hidden_size), dtype=x.dtype)
-            )
-        
-        batch_size = x.shape[0]
         cells = self.cells
 
         for i in range(1, self.lstm_layers + 1):
 
             lstm = LSTM(cells, return_sequences=(i < self.lstm_layers), dtype=self.dtype, param_dtype=self.param_dtype)
-            carry = zero_carry(batch_size, cells)
-            x = lstm(x, initial_state=carry)
+            x = lstm(x)
                 
             x = nn.LayerNorm(epsilon=LN_EPSILON, dtype=self.dtype, param_dtype=self.param_dtype)(x)
             x = nn.Dropout(self.dropout)(x, deterministic=not training)
