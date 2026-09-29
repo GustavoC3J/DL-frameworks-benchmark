@@ -9,6 +9,7 @@ import traceback
 import pandas as pd
 
 from datasets.loader.data_loader import DataLoader
+from utils.energy_monitor import EnergyMonitor
 from utils.gpu_monitor import GPUMonitor
 from utils.precision import Precision
 
@@ -31,7 +32,7 @@ def parse_params():
 
     return parser.parse_args()
 
-def run_experiment(runner, params, output_directory, monitor):
+def run_experiment(runner, params, output_directory, monitor, energy_monitor):
 
     # Path to the results files
     global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
@@ -59,7 +60,9 @@ def run_experiment(runner, params, output_directory, monitor):
     runner.precompile(*formatted_data)
     precompile_time = time.time() - start
 
-    # Start training
+    # Start training. codecarbon starts before the clock and stops after it, so its own
+    # bookkeeping stays out of the measured time
+    energy_monitor.start("train")
     start = time.time()
     monitor.start(train_samples_filepath, start)
 
@@ -67,6 +70,7 @@ def run_experiment(runner, params, output_directory, monitor):
 
     monitor.stop()
     training_time = time.time() - start
+    energy_monitor.stop()
 
     # Writing the best model to disk depends on each framework's format, so it is timed apart
     start = time.time()
@@ -77,6 +81,7 @@ def run_experiment(runner, params, output_directory, monitor):
     # Start testing
     formatted_data = data_loader.load_data("test")
     
+    energy_monitor.start("test")
     start = time.time()
     monitor.start(test_samples_filepath, start)
 
@@ -84,6 +89,7 @@ def run_experiment(runner, params, output_directory, monitor):
 
     monitor.stop()
     testing_time = time.time() - start
+    energy_monitor.stop()
 
 
     # Get memory of all GPUs
@@ -157,9 +163,10 @@ if __name__ == "__main__":
     os.makedirs(output_directory, exist_ok=True)
     
     monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
+    energy_monitor = EnergyMonitor(params.gpu_ids, output_directory, interval=params.interval)
 
     try:
-        run_experiment(runner, params, output_directory, monitor)
+        run_experiment(runner, params, output_directory, monitor, energy_monitor)
     except Exception as e:
         # Clean traceback routes and save to file
         tb_lines = traceback.format_exc().splitlines()
@@ -177,3 +184,4 @@ if __name__ == "__main__":
             f.write("\n".join(cleaned_lines))
 
         monitor.stop()
+        energy_monitor.stop()
