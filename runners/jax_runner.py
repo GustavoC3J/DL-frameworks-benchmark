@@ -72,6 +72,7 @@ class JaxRunner(Runner):
             epoch_start_time = time.time()
             train_losses = []
             train_metrics = []
+            batch_sizes = []
             
             for batch_x, batch_y in train_dl:
                 # Parse data into JAX arrays
@@ -82,6 +83,7 @@ class JaxRunner(Runner):
                 self.state, loss, metric = self.train_step(self.state, (batch_x, batch_y), subkey)
                 train_losses.append(loss)
                 train_metrics.append(metric)
+                batch_sizes.append(len(batch_y))
 
 
             # Validation
@@ -93,8 +95,9 @@ class JaxRunner(Runner):
                 best_model_weights = self.state.replace()
 
             # Save metrics
-            history["loss"].append(jnp.mean(jnp.array(train_losses)).item())
-            history[metric_name].append(jnp.mean(jnp.array(train_metrics)).item())
+            # Weighted by batch size, so a smaller last batch does not count as a full one
+            history["loss"].append(jnp.average(jnp.array(train_losses), weights=jnp.array(batch_sizes)).item())
+            history[metric_name].append(jnp.average(jnp.array(train_metrics), weights=jnp.array(batch_sizes)).item())
             history["val_loss"].append(val_loss)
             history[f"val_{metric_name}"].append(val_metric)
             history["epoch_time"].append(time.time() - epoch_start_time)
@@ -137,20 +140,21 @@ class JaxRunner(Runner):
 
     def __evaluate(self, test_dl, val = False):
 
-        test_loss = 0
-        test_metric = 0
-        num_batches = len(test_dl)
+        losses = []
+        metrics = []
+        batch_sizes = []
         
         start_time = time.time()
         for batch_x, batch_y in test_dl:
             loss, metric = self.eval_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)))
 
-            test_loss += loss
-            test_metric += metric
+            losses.append(loss)
+            metrics.append(metric)
+            batch_sizes.append(len(batch_y))
 
-        # Calculate mean
-        test_loss /= num_batches
-        test_metric /= num_batches
+        # Weighted by batch size, as Keras does, so a smaller last batch does not count as a full one
+        test_loss = jnp.average(jnp.array(losses), weights=jnp.array(batch_sizes))
+        test_metric = jnp.average(jnp.array(metrics), weights=jnp.array(batch_sizes))
         
         # Print log message if it is test
         if not val:

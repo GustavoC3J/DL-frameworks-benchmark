@@ -23,6 +23,13 @@ def mae(preds, y):
     return torch.mean(torch.abs(preds.float() - y.float()))
 
 
+def batch_weighted_mean(values, batch_sizes):
+    """Mean over samples of per-batch means: a smaller last batch
+    weighs by its size instead of counting as a full one."""
+    weights = torch.tensor(batch_sizes, dtype=torch.float32, device=values[0].device)
+    return (torch.stack(values) * weights).sum() / weights.sum()
+
+
 def init_lstm_weights(lstm):
     """Keras' LSTM initialization: glorot kernel, orthogonal recurrent kernel and unit_forget_bias.
 

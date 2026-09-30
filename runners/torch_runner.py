@@ -7,7 +7,7 @@ import torch
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
 from utils.precision import get_torch_precision
-from utils.torch_utils import adjust_outputs
+from utils.torch_utils import adjust_outputs, batch_weighted_mean
 
 
 class TorchRunner(Runner):
@@ -110,6 +110,7 @@ class TorchRunner(Runner):
             epoch_start_time = time.time()
             train_losses = []
             train_metrics = []
+            batch_sizes = []
 
             # Set training mode
             self.model.train()
@@ -119,6 +120,7 @@ class TorchRunner(Runner):
 
                 train_losses.append(loss)
                 train_metrics.append(metric)
+                batch_sizes.append(len(batch_y))
 
             # Validation
             val_loss, val_metric, _ = self.__evaluate(val_dl, True)
@@ -131,8 +133,8 @@ class TorchRunner(Runner):
 
 
             # Save metrics
-            history["loss"].append(torch.stack(train_losses).mean().item())
-            history[metric_name].append(torch.stack(train_metrics).mean().item())
+            history["loss"].append(batch_weighted_mean(train_losses, batch_sizes).item())
+            history[metric_name].append(batch_weighted_mean(train_metrics, batch_sizes).item())
             history["val_loss"].append(val_loss)
             history[f"val_{metric_name}"].append(val_metric)
             history["epoch_time"].append(time.time() - epoch_start_time)
@@ -187,6 +189,7 @@ class TorchRunner(Runner):
 
         losses = []
         metrics = []
+        batch_sizes = []
 
         # Set evaluation mode
         self.model.eval()
@@ -220,10 +223,10 @@ class TorchRunner(Runner):
 
                 losses.append(loss.float())
                 metrics.append(metric.float())
+                batch_sizes.append(len(batch_y))
 
-        # Calculate mean
-        test_loss = torch.stack(losses).mean().item()
-        test_metric = torch.stack(metrics).mean().item()
+        test_loss = batch_weighted_mean(losses, batch_sizes).item()
+        test_metric = batch_weighted_mean(metrics, batch_sizes).item()
     
         # Print log message if it is test
         if not val:
