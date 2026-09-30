@@ -1,6 +1,7 @@
 
 
 import argparse
+import math
 import os
 import time
 from datetime import datetime
@@ -32,7 +33,7 @@ def parse_params():
 
     return parser.parse_args()
 
-def run_experiment(runner, params, output_directory, monitor, energy_monitor):
+def run_experiment(runner, params, output_directory, gpu_monitor, energy_monitor):
 
     # Path to the results files
     global_metrics_filepath = os.path.join(output_directory, "global_metrics.csv")
@@ -60,16 +61,18 @@ def run_experiment(runner, params, output_directory, monitor, energy_monitor):
     runner.precompile(*formatted_data)
     precompile_time = time.time() - start
 
-    # Start training. codecarbon starts before the clock and stops after it, so its own
-    # bookkeeping stays out of the measured time
-    energy_monitor.start("train")
+    # Batches of each stage, to turn times and energies into costs per batch
+    train_batches, val_batches = (math.ceil(len(X) / params.batch_size) for X in formatted_data[:2])
+
+    # Start training
+    energy_monitor.start("train") # The runner opens a codecarbon task per stage
+    gpu_monitor.start(train_samples_filepath, start)
     start = time.time()
-    monitor.start(train_samples_filepath, start)
 
-    train_results = runner.train(*formatted_data)
+    train_results = runner.train(*formatted_data, energy_monitor=energy_monitor)
 
-    monitor.stop()
     training_time = time.time() - start
+    gpu_monitor.stop()
     energy_monitor.stop()
 
     # Writing the best model to disk depends on each framework's format, so it is timed apart
@@ -80,22 +83,24 @@ def run_experiment(runner, params, output_directory, monitor, energy_monitor):
 
     # Start testing
     formatted_data = data_loader.load_data("test")
-    
+    test_batches = math.ceil(len(formatted_data[0]) / params.batch_size)
+
     energy_monitor.start("test")
+    energy_monitor.begin("test")
+    gpu_monitor.start(test_samples_filepath, start)
     start = time.time()
-    monitor.start(test_samples_filepath, start)
 
     test_results = runner.evaluate(*formatted_data)
 
-    monitor.stop()
     testing_time = time.time() - start
+    gpu_monitor.stop()
     energy_monitor.stop()
 
 
     # Get memory of all GPUs
     gpu_memory_total = {
         f"gpu_{idx}_memory_total": mem_total
-        for idx, mem_total in monitor.get_total_memory().items()
+        for idx, mem_total in gpu_monitor.get_total_memory().items()
     }
 
     global_metrics = pd.DataFrame([{  
@@ -112,6 +117,9 @@ def run_experiment(runner, params, output_directory, monitor, energy_monitor):
         'training_time': training_time,
         'saving_time': saving_time,
         'testing_time': testing_time,  
+        'train_batches': train_batches,
+        'val_batches': val_batches,
+        'test_batches': test_batches,
         **gpu_memory_total  
     }])
 
@@ -162,11 +170,11 @@ if __name__ == "__main__":
     output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
     os.makedirs(output_directory, exist_ok=True)
     
-    monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
+    gpu_monitor = GPUMonitor(params.gpu_ids, interval=params.interval)
     energy_monitor = EnergyMonitor(params.gpu_ids, output_directory, interval=params.interval)
 
     try:
-        run_experiment(runner, params, output_directory, monitor, energy_monitor)
+        run_experiment(runner, params, output_directory, gpu_monitor, energy_monitor)
     except Exception as e:
         # Clean traceback routes and save to file
         tb_lines = traceback.format_exc().splitlines()
@@ -183,5 +191,5 @@ if __name__ == "__main__":
         with open(output_directory + "/error.txt", "a") as f:
             f.write("\n".join(cleaned_lines))
 
-        monitor.stop()
+        gpu_monitor.stop()
         energy_monitor.stop()

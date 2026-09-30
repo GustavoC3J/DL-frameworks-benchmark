@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from datasets.loader.data_loader_factory import DataLoaderFactory
+from utils.stage_monitor import StageMonitor
 
 
 class Runner(ABC):
@@ -74,8 +75,13 @@ class Runner(ABC):
         self._precompile(self.__warmup_loader(trainX, trainY), self.__warmup_loader(validX, validY))
 
 
-    def train(self, trainX, validX, trainY, validY):
-        return self._train(*self._loaders(trainX, validX, trainY, validY))
+    def train(self, trainX, validX, trainY, validY, energy_monitor=None):
+        """Trains the model and returns its history per epoch, with the time of the training and
+        validation stages apart. The runner marks those stages in self.stages."""
+        self.stage_monitor = StageMonitor(self._sync, energy_monitor)
+        history = self._train(*self._loaders(trainX, validX, trainY, validY))
+
+        return {**history, **self.stage_monitor.times}
 
 
     @abstractmethod
@@ -88,6 +94,11 @@ class Runner(ABC):
 
     @abstractmethod
     def _train(self, train_dl, val_dl):
+        pass
+
+    @abstractmethod
+    def _sync(self):
+        """Waits until the device finishes the work queued so far."""
         pass
 
     @abstractmethod

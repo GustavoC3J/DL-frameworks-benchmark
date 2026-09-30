@@ -77,10 +77,10 @@ class GPUMonitor:
                 writer.writerow(row)
                 f.flush()
 
-                # Wait for the next sample
+                # Wait for the next sample. On the event, so stop() returns at once instead of up to
+                # a whole interval later, which the last codecarbon task would count
                 elapsed = time.time() - t0
-                to_sleep = max(0, self.interval - elapsed)
-                time.sleep(to_sleep)
+                self._stop_event.wait(max(0, self.interval - elapsed))
 
         nvmlShutdown()
 

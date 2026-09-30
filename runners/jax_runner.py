@@ -70,6 +70,7 @@ class JaxRunner(Runner):
         for epoch in range(self.epochs):
             # Training
             epoch_start_time = time.time()
+            self.stage_monitor.train_begin()
             train_losses = []
             train_metrics = []
             batch_sizes = []
@@ -87,7 +88,9 @@ class JaxRunner(Runner):
 
 
             # Validation
+            self.stage_monitor.val_begin()
             val_loss, val_metric, _ = self.__evaluate(val_dl, True)
+            self.stage_monitor.epoch_end()
 
             # Save best model
             if val_loss < best_val_loss:
@@ -109,6 +112,11 @@ class JaxRunner(Runner):
             self.state = best_model_weights
         
         return history
+
+
+    def _sync(self):
+        # Every step consumes the previous state, so the last one is ready when all of them are
+        jax.block_until_ready(self.state)
 
 
     def _precompile(self, train_dl, val_dl):

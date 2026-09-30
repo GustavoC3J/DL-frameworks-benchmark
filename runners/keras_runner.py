@@ -7,7 +7,7 @@ from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
 from utils.precision import get_keras_precision
-from utils.time_callback import TimeCallback
+from utils.stage_callback import StageCallback
 
 # Keras backend each benchmark backend runs on (KERAS_BACKEND has to be set before importing keras)
 KERAS_BACKENDS = {"tf-keras": "tensorflow", "torch-keras": "torch", "jax-keras": "jax"}
@@ -97,11 +97,29 @@ class KerasRunner(Runner):
         self.model.reset_metrics()
 
 
+    def _sync(self):
+        backend = keras.backend.backend()
+
+        if backend == "tensorflow":
+            import tensorflow as tf
+            tf.test.experimental.sync_devices()
+
+        elif backend == "torch":
+            import torch
+            torch.cuda.synchronize()
+
+        else:
+            # fit hands the JAX state back to the variables before validating
+            import jax
+            jax.block_until_ready([variable.value for variable in self.model.variables])
+
+
     def _train(self, train_dl, val_dl):
-        # The best weights are kept in GPU memory and restored at the end of fit
+        # The best weights are kept in GPU memory and restored at the end of fit.
+        # StageCallback goes first, so the validation stage ends before the copy of the best weights
         callbacks = [
-            BestWeightsCallback(),
-            TimeCallback()
+            StageCallback(self.stage_monitor),
+            BestWeightsCallback()
         ]
 
         # Train the model
@@ -113,7 +131,7 @@ class KerasRunner(Runner):
         )
 
         # Add epoch times
-        history.history["epoch_time"] = callbacks[1].times
+        history.history["epoch_time"] = callbacks[0].times
 
         return history.history
 
