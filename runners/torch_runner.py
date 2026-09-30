@@ -39,6 +39,33 @@ class TorchRunner(Runner):
         # Move the model to the GPU and set its precision
         self.model.to(device=self.device, dtype=self.dtype)
 
+        # One graph per batch shape: a dynamic batch dimension would change the generated kernels
+        torch._dynamo.config.automatic_dynamic_shapes = False
+
+        # The plain module stays as self.model, so state_dict keys and checkpoints do not change
+        self.forward = torch.compile(self.__forward)
+
+
+    def __forward(self, batch_x, batch_y):
+        """Forward pass, loss and metric, in the precision the run asks for.
+        This is what gets compiled"""
+        if self.amp:
+            # Get outputs and loss using lower precision
+            with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
+                outputs = self.model(batch_x)
+
+                if self.model_type == "lstm":
+                    outputs = adjust_outputs(outputs, batch_y)
+
+                return self.config["loss_fn"](outputs, batch_y), self.config["metric_fn"](outputs, batch_y)
+
+        outputs = self.model(batch_x)
+
+        if self.model_type == "lstm":
+            outputs = adjust_outputs(outputs, batch_y)
+
+        return self.config["loss_fn"](outputs, batch_y), self.config["metric_fn"](outputs, batch_y)
+
 
     def __train_step(self, batch_x, batch_y):
         """One training step: forward, backward and update.
@@ -53,32 +80,15 @@ class TorchRunner(Runner):
 
         self.config["optimizer"].zero_grad()
 
+        loss, metric = self.forward(batch_x, batch_y)
+
         if self.amp:
-            # Get outputs and loss using lower precision
-            with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
-                outputs = self.model(batch_x)
-
-                if self.model_type == "lstm":
-                    outputs = adjust_outputs(outputs, batch_y)
-
-                loss = self.config["loss_fn"](outputs, batch_y)
-                metric = self.config["metric_fn"](outputs, batch_y)
-
             # Perform updates in higher precision
             self.scaler.scale(loss).backward()
             self.scaler.step(self.config["optimizer"])
             self.scaler.update()
 
         else:
-            # Get loss and perform updates using the same precision
-            outputs = self.model(batch_x)
-
-            if self.model_type == "lstm":
-                outputs = adjust_outputs(outputs, batch_y)
-
-            loss = self.config["loss_fn"](outputs, batch_y)
-            metric = self.config["metric_fn"](outputs, batch_y)
-
             loss.backward()
             self.config["optimizer"].step()
 
@@ -148,7 +158,7 @@ class TorchRunner(Runner):
         return history
 
 
-    def _precompile(self, train_batches, val_batches):
+    def _precompile(self, train_dl, val_dl):
 
         # Kept to restore it once the kernels are warmed up. Dropout draws from the RNG states
         model_state = copy.deepcopy(self.model.state_dict())
@@ -158,11 +168,11 @@ class TorchRunner(Runner):
         cuda_rng_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
 
         self.model.train()
-        for batch_x, batch_y in train_batches:
+        for batch_x, batch_y in train_dl:
             self.__train_step(batch_x, batch_y)
 
         # Evaluation path: forward only, under no_grad
-        self.__evaluate(val_batches, True)
+        self.__evaluate(val_dl, True)
 
         # Wait for the GPU before the caller stops its timer
         if torch.cuda.is_available():
@@ -202,24 +212,7 @@ class TorchRunner(Runner):
                 batch_x = batch_x.to(device=self.device, dtype=self.dtype)
                 batch_y = batch_y.to(device=self.device, dtype=torch.long if batch_y.dtype == torch.long else self.dtype)
 
-                if self.amp:
-                    with torch.autocast(device_type="cuda", dtype=self.amp_dtype):
-                        test_outputs = self.model(batch_x)
-
-                        if self.model_type == "lstm":
-                            test_outputs = adjust_outputs(test_outputs, batch_y)
-
-                        loss = self.config["loss_fn"](test_outputs, batch_y)
-                        metric = self.config["metric_fn"](test_outputs, batch_y)
-
-                else:
-                    test_outputs = self.model(batch_x)
-
-                    if self.model_type == "lstm":
-                        test_outputs = adjust_outputs(test_outputs, batch_y)
-
-                    loss = self.config["loss_fn"](test_outputs, batch_y)
-                    metric = self.config["metric_fn"](test_outputs, batch_y)
+                loss, metric = self.forward(batch_x, batch_y)
 
                 losses.append(loss.float())
                 metrics.append(metric.float())

@@ -48,23 +48,17 @@ class Runner(ABC):
         return self.__loaders
 
 
-    def __warmup_batches(self, X, Y):
-        """The batches to warm up one graph with: PRECOMPILE_STEPS full-size ones, plus a smaller
-        one when the split does not divide evenly, since that remainder is a shape of its own
-        that would otherwise get traced during the measured training.
+    def __warmup_loader(self, X, Y):
+        """A loader for one warm-up pass: PRECOMPILE_STEPS full-size batches, plus a smaller one when
+        the split does not divide evenly, since that remainder is a shape of its own that would
+        otherwise get traced during the measured training.
 
-        Drawn from a throwaway loader instead of the real one, so the real loader's shuffling is
-        not advanced and the first epoch still sees the batches it would have without warming up.
+        A throwaway loader, so the real loader's shuffling is not advanced and the first epoch still
+        sees the batches it would have without warming up.
         """
-        samples = self.PRECOMPILE_STEPS * self.batch_size
-        batches = list(self.dl_factory.fromNumpy(X[:samples], Y[:samples], self.batch_size, shuffle=False))
+        samples = self.PRECOMPILE_STEPS * self.batch_size + len(X) % self.batch_size
 
-        remainder = len(X) % self.batch_size
-
-        if remainder:
-            batches += list(self.dl_factory.fromNumpy(X[:remainder], Y[:remainder], remainder, shuffle=False))
-
-        return batches
+        return self.dl_factory.fromNumpy(X[:samples], Y[:samples], self.batch_size, shuffle=False)
 
 
     def precompile(self, trainX, validX, trainY, validY):
@@ -77,7 +71,7 @@ class Runner(ABC):
         # Built here, so their one-off cost lands outside the measured training too
         self._loaders(trainX, validX, trainY, validY)
 
-        self._precompile(self.__warmup_batches(trainX, trainY), self.__warmup_batches(validX, validY))
+        self._precompile(self.__warmup_loader(trainX, trainY), self.__warmup_loader(validX, validY))
 
 
     def train(self, trainX, validX, trainY, validY):
@@ -89,7 +83,7 @@ class Runner(ABC):
         pass
 
     @abstractmethod
-    def _precompile(self, train_batches, val_batches):
+    def _precompile(self, train_dl, val_dl):
         pass
 
     @abstractmethod

@@ -111,20 +111,20 @@ class JaxRunner(Runner):
         return history
 
 
-    def _precompile(self, train_batches, val_batches):
+    def _precompile(self, train_dl, val_dl):
 
         # The state is immutable and every step returns a new one, so keeping the reference
         # is all it takes to undo the warm-up
         state, key = self.state, self.key
 
-        for batch_x, batch_y in train_batches:
+        for batch_x, batch_y in train_dl:
             self.key, subkey = jax.random.split(self.key)
             self.state, _, _ = self.train_step(self.state, (jnp.array(batch_x), jnp.array(batch_y)), subkey)
 
         jax.block_until_ready(self.state)
 
         # Compiles eval_step, which validation and the test reuse
-        self.__evaluate(val_batches, True)
+        self.__evaluate(val_dl, True)
 
         self.state, self.key = state, key
 

@@ -40,6 +40,13 @@ class KerasRunner(Runner):
     def define_model(self):
         self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
 
+        # Keras-torch runs eagerly by default (tf and jax already use XLA).
+        # One graph per batch shape, as in TorchRunner
+        if keras.backend.backend() == "torch":
+            import torch
+            torch._dynamo.config.automatic_dynamic_shapes = False
+            self.model.jit_compile = True
+
 
     def __seed_generators(self):
         """The SeedGenerator every random layer (dropout) owns. keras.utils.set_random_seed does not
@@ -55,20 +62,14 @@ class KerasRunner(Runner):
         return generators
 
 
-    @staticmethod
-    def __as_numpy(batches):
-        """Keras' loader adapters hand the trainer numpy arrays: its JAX backend cannot take a torch
-        tensor straight from the DataLoader."""
-        return [(np.asarray(batch_x), np.asarray(batch_y)) for batch_x, batch_y in batches]
+    def _precompile(self, train_dl, val_dl):
+        """Runs one fit() over the warm-up loaders, so the train and test functions are traced and
+        compiled on the path the training takes, and then undoes everything it changed:
+        weights, optimizer state, metrics and seeds."""
 
-
-    def _precompile(self, train_batches, val_batches):
-        """Builds and warms up the two functions fit() uses, train_function and test_function, and
-        then undoes everything the steps changed: weights, optimizer state, metrics and seeds."""
-
-        # test_function first: it builds the model without touching its weights
-        for batch_x, batch_y in self.__as_numpy(val_batches):
-            self.model.test_on_batch(batch_x, batch_y)
+        # Builds the model without touching its weights
+        # JAX cannot take a torch tensor directly -> np.asarray
+        self.model(np.asarray(next(iter(train_dl))[0]))
 
         # Only what already exists is saved: the optimizer's slots appear on the first update and
         # start at zero, and this keeps values such as the learning rate intact
@@ -78,9 +79,7 @@ class KerasRunner(Runner):
         generators = self.__seed_generators()
         generator_states = [ops.convert_to_numpy(generator.state) for generator in generators]
 
-        # train_function: forward, backward and optimizer update
-        for batch_x, batch_y in self.__as_numpy(train_batches):
-            self.model.train_on_batch(batch_x, batch_y)
+        self.model.fit(train_dl, validation_data=val_dl, epochs=1, verbose=0)
 
         # Compiled functions are cached per signature, so restoring values does not discard them
         self.model.set_weights(weights)
@@ -90,7 +89,7 @@ class KerasRunner(Runner):
                 variable.assign(optimizer_state[variable.path])
             else:
                 # Slot created by the steps above (Adam's moments): it starts at zero
-                variable.assign(ops.zeros_like(variable))
+                variable.assign(ops.zeros(variable.shape, dtype=variable.dtype))
 
         for generator, state in zip(generators, generator_states):
             generator.state.assign(state)
