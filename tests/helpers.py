@@ -20,11 +20,15 @@ MODELS = [
     ("mlp", "simple"), ("mlp", "complex"),
     ("cnn", "simple"), ("cnn", "complex"),
     ("lstm", "simple"), ("lstm", "complex"),
+    ("transformer", "simple"), ("transformer", "complex"),
 ]
 MODEL_IDS = [f"{model_type}-{complexity}" for model_type, complexity in MODELS]
 
-INPUT_SHAPES = {"mlp": (784,), "cnn": (32, 32, 3), "lstm": (144, 11)}
+# The Transformer's input holds the 144 source steps and the decoder input, which starts at the last one
+INPUT_SHAPES = {"mlp": (784,), "cnn": (32, 32, 3), "lstm": (144, 11), "transformer": (144 + 12 - 1, 11)}
 NUM_CLASSES = {"mlp": 10, "cnn": 100}
+# Shape of the regression targets: one trip count, or one per step of the Transformer's horizon
+TARGET_SHAPES = {"lstm": (), "transformer": (12,)}
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".artifacts")
 
@@ -35,7 +39,7 @@ def on_gpu():
 
 
 def is_classification(model_type):
-    return model_type != "lstm"
+    return model_type in NUM_CLASSES
 
 
 def make_batch(model_type, batch_size=8, seed=0):
@@ -46,7 +50,7 @@ def make_batch(model_type, batch_size=8, seed=0):
     if is_classification(model_type):
         y = rng.integers(0, NUM_CLASSES[model_type], size=batch_size).astype("int64")
     else:
-        y = rng.uniform(0, 1, size=batch_size).astype("float32")
+        y = rng.uniform(0, 1, size=(batch_size, *TARGET_SHAPES[model_type])).astype("float32")
 
     return x, y
 

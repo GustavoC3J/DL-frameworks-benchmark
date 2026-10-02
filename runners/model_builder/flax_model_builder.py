@@ -11,6 +11,7 @@ from runners.model_builder.models.flax.lstm_complex import LSTMComplex
 from runners.model_builder.models.flax.lstm_simple import LSTMSimple
 from runners.model_builder.models.flax.mlp_complex import MLPComplex
 from runners.model_builder.models.flax.mlp_simple import MLPSimple
+from runners.model_builder.models.flax.transformer import Transformer
 from utils.jax_utils import accuracy, mae, mse, softmax_cross_entropy
 
 
@@ -208,6 +209,86 @@ class FlaxModelBuilder(ModelBuilder):
         params = unit_forget_bias(variables['params'])
 
         # Optimizer
+        optimizer = optax.adam(lr)
+        opt_state = optimizer.init(params)
+
+        config = {
+            "params": params,
+            "optimizer": optimizer,
+            "opt_state": opt_state,
+            "loss_fn": mse,
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
+
+        return model, config
+
+
+    def _transformer_simple(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12 # Steps of trip count to predict
+
+        lr = 1e-4
+
+        self.key, init_key = jax.random.split(self.key, num=2)
+
+        model = Transformer(
+            d_model=128,
+            num_heads=4,
+            d_ff=256,
+            encoder_layers=1,
+            decoder_layers=1,
+            dropout=0.1,
+            source_length=window,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype
+        )
+
+        # Initial state: the input holds the source window and the decoder input
+        dummy_input = jnp.ones((1, window + horizon - 1, 11))
+        params = model.init(init_key, dummy_input, training=False)['params']
+
+        # Optimizer
+        optimizer = optax.adam(lr)
+        opt_state = optimizer.init(params)
+
+        config = {
+            "params": params,
+            "optimizer": optimizer,
+            "opt_state": opt_state,
+            "loss_fn": mse,
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
+
+        return model, config
+
+
+    def _transformer_complex(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12
+
+        lr = 1e-4
+
+        self.key, init_key = jax.random.split(self.key, num=2)
+
+        model = Transformer(
+            d_model=512,
+            num_heads=8,
+            d_ff=2048,
+            encoder_layers=2,
+            decoder_layers=2,
+            dropout=0.1,
+            source_length=window,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype
+        )
+
+        dummy_input = jnp.ones((1, window + horizon - 1, 11))
+        params = model.init(init_key, dummy_input, training=False)['params']
+
         optimizer = optax.adam(lr)
         opt_state = optimizer.init(params)
 

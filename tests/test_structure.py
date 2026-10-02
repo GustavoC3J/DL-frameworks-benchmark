@@ -39,7 +39,9 @@ def test_torch_parameter_count_matches_keras(model_type, complexity):
     # torch.nn.LSTM keeps a second bias (bias_hh) that Keras does not have
     extra_lstm_bias = sum(p.numel() for name, p in torch_model.named_parameters() if name.split(".")[-1].startswith("bias_hh"))
     trainable = sum(p.numel() for p in torch_model.parameters()) - extra_lstm_bias
-    non_trainable = sum(b.numel() for name, b in torch_model.named_buffers() if not name.endswith("num_batches_tracked"))
+    # Constants registered as non-persistent buffers (positional encoding, masks) are not state
+    state = torch_model.state_dict()
+    non_trainable = sum(b.numel() for name, b in torch_model.named_buffers() if name in state and not name.endswith("num_batches_tracked"))
 
     assert (trainable, non_trainable) == keras_counts(keras_model)
 

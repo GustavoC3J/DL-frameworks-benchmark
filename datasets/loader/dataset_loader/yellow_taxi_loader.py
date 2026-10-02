@@ -20,9 +20,16 @@ COLUMNS = [
 
 class YellowTaxiDatasetLoader(DatasetLoader):
 
+    def __init__(self, seed, horizon=1):
+        super().__init__(seed)
+        # Steps of trip_count to predict: 1 is the next one, more turn the target into a sequence
+        self.horizon = horizon
+
+
     def load(self, dataset_type, **kwargs):
         interval = 10 # Minutes
         window = 24 * 60 // interval # Number of timesteps
+        windows = self.__windows if self.horizon == 1 else self.__sequence_windows
 
         df = self.aggregate(dataset_type, interval)
 
@@ -36,14 +43,14 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             train, val = df[:train_size], df[train_size:]
 
             # Shape sets into windows
-            trainX, trainY = self.__windows(np.array(train), window)
-            valX, valY = self.__windows(np.array(val), window)
+            trainX, trainY = windows(np.array(train), window)
+            valX, valY = windows(np.array(val), window)
             
             return trainX, valX, trainY, valY
         
         else:
             df = pd.DataFrame(self.scaler.transform(df), columns=df.columns)
-            testX, testY = self.__windows(np.array(df), window)
+            testX, testY = windows(np.array(df), window)
 
             return testX, testY
 
@@ -158,4 +165,18 @@ class YellowTaxiDatasetLoader(DatasetLoader):
             x.append(data[i:i+timesteps])  # Input window
             y.append(data[i+timesteps, -1])  # Next trip count
         # float32 is what the tensors use: halves the memory of the windows
+        return np.array(x, dtype="float32"), np.array(y, dtype="float32")
+
+
+    def __sequence_windows(self, data, timesteps):
+        """Windows for an encoder-decoder: the input holds the `timesteps` source steps and, from the last
+        one on, the steps the decoder is fed (the observations shifted one step, teacher forcing).
+
+        The target is the trip count of the `horizon` steps that follow the source window.
+        """
+        horizon = self.horizon
+        x, y = [], []
+        for i in range(len(data) - timesteps - horizon + 1):
+            x.append(data[i:i+timesteps+horizon-1])
+            y.append(data[i+timesteps:i+timesteps+horizon, -1])
         return np.array(x, dtype="float32"), np.array(y, dtype="float32")

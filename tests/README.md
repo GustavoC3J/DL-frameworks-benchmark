@@ -1,6 +1,6 @@
 # Equivalence tests
 
-The benchmark compares five backends, so the six models have to be **the same model** in Keras,
+The benchmark compares five backends, so the eight models have to be **the same model** in Keras,
 torch and Flax. This suite checks that: same architecture, same function, same hyperparameters,
 same initialization, same dtypes in every precision, and same gradients. It uses synthetic data, so
 no dataset is needed.
@@ -44,6 +44,7 @@ exactly the same ones without exchanging files.
 | `test_init.py` | That every tensor a builder initializes follows the same distribution as its Keras counterpart (mean and standard deviation, with a tolerance that depends on its size) |
 | `test_precision.py` | For the five precisions: dtype of the parameters, declared compute dtype, and dtype of the outputs and the loss, and of each LSTM layer's output in Flax |
 | `test_train_step.py` | One SGD step with learning rate 1, which exposes the gradient: same loss, same gradients (compared at the scale of their layer) and same BatchNorm statistics |
+| `test_transformer.py` | That the decoder is causal: changing its inputs from one step on leaves the earlier outputs untouched, which catches a mask that is inverted or ignored (the three frameworks use opposite conventions) |
 
 And the scaffolding: `conftest.py` (device, seeds, dtype policy), `helpers.py` (model grid,
 canonical batch and weights, artifacts), `transplant.py` (pairs layers by type and converts the
@@ -69,7 +70,7 @@ split so that the step becomes a reusable function.
 ## Adding a model or a layer
 
 1. Add the combination to `MODELS`, its input shape to `INPUT_SHAPES` and, if it classifies, its
-   number of classes to `NUM_CLASSES`, in `helpers.py`.
+   number of classes to `NUM_CLASSES` (or the shape of its targets to `TARGET_SHAPES`), in `helpers.py`.
 2. If it brings a new layer type, add it to the `kinds` dictionaries in `transplant.py` and its
    conversion to `torch_arrays` and `flax_arrays`. Structure, forward, initialization, precision and
    gradient tests then cover it automatically. If the Keras layer has sublayers of its own, like

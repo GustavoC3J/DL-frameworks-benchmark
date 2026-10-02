@@ -15,6 +15,12 @@ DEFAULT_DATASET = {
     "mlp": "fashion-mnist",
     "cnn": "cifar100",
     "lstm": "yellow-taxi",
+    "transformer": "yellow-taxi",
+}
+
+# Options of the model's dataset loader: the Transformer predicts a sequence of 12 steps (2 hours)
+DATASET_OPTIONS = {
+    "transformer": {"horizon": 12},
 }
 
 
@@ -30,7 +36,7 @@ class DataLoader():
 
         self.dataset = dataset
         # A single instance: the taxi loader keeps the scaler fitted in train for the test set
-        self.loader = DATASETS[dataset](seed)
+        self.loader = DATASETS[dataset](seed, **DATASET_OPTIONS.get(model_type, {}))
 
     def load_data(self, dataset_type, **kwargs):
         return self.loader.load(dataset_type, **kwargs)

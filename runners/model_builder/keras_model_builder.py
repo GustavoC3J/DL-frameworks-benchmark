@@ -9,6 +9,7 @@ from runners.model_builder.models.keras.lstm_complex import lstm_complex
 from runners.model_builder.models.keras.lstm_simple import lstm_simple
 from runners.model_builder.models.keras.mlp_complex import MLPComplex
 from runners.model_builder.models.keras.mlp_simple import mlp_simple
+from runners.model_builder.models.keras.transformer import Transformer
 
 
 class KerasModelBuilder(ModelBuilder):
@@ -118,6 +119,62 @@ class KerasModelBuilder(ModelBuilder):
         model = lstm_complex(cells, lstm_layers, dropout_rate=dropout)
 
         # Compile the model
+        model.compile(
+            optimizer = Adam(learning_rate = lr),
+            loss = 'mse',
+            metrics = ['mae']
+        )
+
+        return model
+
+
+    def _transformer_simple(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12 # Steps of trip count to predict
+
+        lr = 1e-4
+
+        # Build the model
+        model = Transformer(
+            d_model=128,
+            num_heads=4,
+            d_ff=256,
+            encoder_layers=1,
+            decoder_layers=1,
+            dropout=0.1,
+            source_length=window,
+            horizon=horizon
+        )
+
+        # Compile the model
+        model.compile(
+            optimizer = Adam(learning_rate = lr),
+            loss = 'mse',
+            metrics = ['mae']
+        )
+
+        return model
+
+
+    def _transformer_complex(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12
+
+        lr = 1e-4
+
+        model = Transformer(
+            d_model=512,
+            num_heads=8,
+            d_ff=2048,
+            encoder_layers=2,
+            decoder_layers=2,
+            dropout=0.1,
+            source_length=window,
+            horizon=horizon
+        )
+
         model.compile(
             optimizer = Adam(learning_rate = lr),
             loss = 'mse',

@@ -1,5 +1,5 @@
 import time
-from energy_monitor import EnergyMonitor
+from utils.energy_monitor import EnergyMonitor
 from collections.abc import Callable
 
 

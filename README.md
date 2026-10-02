@@ -5,9 +5,19 @@ This project evaluates the performance and efficiency of different frameworks an
 ## Features
 
 - Comparison of multiple frameworks such as TensorFlow, PyTorch, and JAX, with and without Keras.
-- Evaluation of MLP, CNN, and LSTM models over two variants: simple and complex.
+- Evaluation of MLP, CNN, LSTM, and Transformer models over two variants: simple and complex.
 - Selection of the precision format: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
 - Assessment of key metrics such as training time and energy consumption.
+
+## The Transformer
+
+It is the encoder-decoder of [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) (multi-head
+attention, post-LayerNorm residual blocks, sinusoidal positions, dropout on every sublayer), with a linear
+regression head, trained on the taxi data like the LSTM. Given the last 24 hours (144 steps of 10 minutes),
+it predicts the trip count of the next 12 steps. The decoder is fed the observations shifted one step
+(teacher forcing) under a causal mask, also in validation and test, so its test metric is not a real
+12-step forecast. `simple` has 1+1 layers and `complex` 2+2 (about 0.3 M and 14.7 M parameters). Unlike
+the paper, it trains with the benchmark's fixed protocol: Adam with a constant learning rate and no warm-up.
 
 ## Environment setup
 
@@ -37,7 +47,7 @@ python datasets/download.py
 
 ### Preprocess the taxi dataset
 
-The LSTM dataset is 7 GB of raw trip records that get cleaned and aggregated into a few thousand
+The LSTM and Transformer dataset is 7 GB of raw trip records that get cleaned and aggregated into a few thousand
 10-minute intervals. That result is cached, so it is computed once instead of on every run:
 
 ```sh
@@ -53,7 +63,7 @@ Inside the `bash/` folder you will find the script `run.sh`. This script receive
 
 The parameters are the following:
   1. Framework: tf-keras, torch, torch-keras, jax, jax-keras.
-  2. Model: mlp, cnn, lstm.
+  2. Model: mlp, cnn, lstm, transformer.
   3. Complexity: simple, complex.
   4. Precision: fp32, fp16, bf16, mixed_fp16, mixed_bf16.
   5. GPU: GPU number (0, 1, 2...). Run the command `nvidia-smi` to see each GPU's id.
@@ -75,7 +85,7 @@ When execution finishes, the experiment results will be stored in their correspo
 
 ## Checking that the models are equivalent
 
-`tests/` holds an equivalence suite: it checks that the six models are the same model in Keras,
+`tests/` holds an equivalence suite: it checks that the eight models are the same model in Keras,
 torch and Flax (same architecture, same outputs with the same weights, same hyperparameters,
 initialization, dtypes and gradients). See [`tests/README.md`](tests/README.md).
 

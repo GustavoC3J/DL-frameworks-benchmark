@@ -10,6 +10,7 @@ from runners.model_builder.models.torch.lstm_complex import LSTMComplex
 from runners.model_builder.models.torch.lstm_simple import LSTMSimple
 from runners.model_builder.models.torch.mlp_complex import MLPComplex
 from runners.model_builder.models.torch.mlp_simple import MLPSimple
+from runners.model_builder.models.torch.transformer import Transformer
 from utils.torch_utils import accuracy, mae, mse, softmax_cross_entropy
 
 
@@ -115,6 +116,62 @@ class TorchModelBuilder(ModelBuilder):
         lr = 1e-4
 
         model = LSTMComplex(cells, lstm_layers, dropout_rate=dropout)
+
+        config = {
+            "optimizer": optim.Adam(model.parameters(), lr=lr),
+            "loss_fn": mse,
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
+
+        return model, config
+
+
+    def _transformer_simple(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12 # Steps of trip count to predict
+
+        lr = 1e-4
+
+        model = Transformer(
+            d_model=128,
+            num_heads=4,
+            d_ff=256,
+            encoder_layers=1,
+            decoder_layers=1,
+            dropout=0.1,
+            source_length=window,
+            horizon=horizon
+        )
+
+        config = {
+            "optimizer": optim.Adam(model.parameters(), lr=lr),
+            "loss_fn": mse,
+            "metric_fn": mae,
+            "metric_name": "mae"
+        }
+
+        return model, config
+
+
+    def _transformer_complex(self):
+        interval = 10
+        window = 24 * 60 // interval
+        horizon = 12
+
+        lr = 1e-4
+
+        model = Transformer(
+            d_model=512,
+            num_heads=8,
+            d_ff=2048,
+            encoder_layers=2,
+            decoder_layers=2,
+            dropout=0.1,
+            source_length=window,
+            horizon=horizon
+        )
 
         config = {
             "optimizer": optim.Adam(model.parameters(), lr=lr),

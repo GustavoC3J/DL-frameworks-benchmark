@@ -70,6 +70,20 @@ def init_layer_weights(layer, kernel_initializer):
             nn.init.zeros_(layer.bias)
 
             
+def init_attention_weights(attention):
+    """Glorot over each (d, d) projection, as in Keras once its kernels are flattened.
+
+    torch would draw in_proj as one (3d, d) matrix and leave out_proj to the Linear default.
+    """
+    with torch.no_grad():
+        for projection in attention.in_proj_weight.chunk(3):
+            nn.init.xavier_uniform_(projection)
+
+        nn.init.xavier_uniform_(attention.out_proj.weight)
+        nn.init.zeros_(attention.in_proj_bias)
+        nn.init.zeros_(attention.out_proj.bias)
+
+
 def adjust_outputs(outputs: torch.Tensor, targets: torch.Tensor):
     if outputs.shape == targets.shape:
         return outputs
