@@ -168,8 +168,8 @@ class KerasModelBuilder(ModelBuilder):
             d_model=512,
             num_heads=8,
             d_ff=2048,
-            encoder_layers=2,
-            decoder_layers=2,
+            encoder_layers=6,
+            decoder_layers=6,
             dropout=0.1,
             source_length=window,
             horizon=horizon
