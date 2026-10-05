@@ -1,2 +1,0 @@
-backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,training_time,testing_time,gpu_2_memory_total
-tf-keras,lstm,complex,mixed_fp16,100,64,44,2,5.159186363220215,431.16504526138306,2.438220739364624,81920.0
