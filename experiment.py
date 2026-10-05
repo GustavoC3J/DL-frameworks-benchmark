@@ -31,7 +31,18 @@ def parse_params():
     parser.add_argument("--gpu-ids", type=str, default="2")
     parser.add_argument("--interval", type=float, default=1)
 
-    return parser.parse_args()
+    # jax-keras runs the LSTM without cuDNN, which in JAX only supports float32
+    parser.add_argument("--enable-jax-lstm-cudnn", action="store_true")
+
+    params = parser.parse_args()
+
+    if params.enable_jax_lstm_cudnn and (params.backend, params.model_type, params.precision) != ("jax-keras", "lstm", Precision.FP32):
+        parser.error("--enable-jax-lstm-cudnn only applies to jax-keras, lstm and fp32")
+
+    # Name of the run's configuration, in its directory and in global_metrics.csv
+    params.label = "jax-keras-cudnn" if params.enable_jax_lstm_cudnn else params.backend
+
+    return params
 
 def run_experiment(runner, params, output_directory, gpu_monitor, energy_monitor):
 
@@ -104,7 +115,7 @@ def run_experiment(runner, params, output_directory, gpu_monitor, energy_monitor
     }
 
     global_metrics = pd.DataFrame([{  
-        'backend': params.backend,
+        'backend': params.label,
         'model_type': params.model_type,
         'model_complexity': params.model_complexity,
         'precision': params.precision,
@@ -155,7 +166,7 @@ if __name__ == "__main__":
     # Imported only here, once CUDA_VISIBLE_DEVICES is set
     if params.backend.endswith("-keras"):
         from runners.keras_runner import KerasRunner
-        runner = KerasRunner(backend=params.backend, **runner_params)
+        runner = KerasRunner(backend=params.backend, jax_lstm_cudnn=params.enable_jax_lstm_cudnn, **runner_params)
 
     elif params.backend == "torch":
         from runners.torch_runner import TorchRunner
@@ -167,7 +178,7 @@ if __name__ == "__main__":
 
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    output_directory = f"results/{timestamp}_{params.backend}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
+    output_directory = f"results/{timestamp}_{params.label}_{params.model_type}_{params.model_complexity}_{params.precision}_{params.seed}"
     os.makedirs(output_directory, exist_ok=True)
     
     gpu_monitor = GPUMonitor(params.gpu_ids, interval=params.interval)

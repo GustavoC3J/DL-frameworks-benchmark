@@ -3,7 +3,7 @@ from keras import layers, Sequential
 
 from runners.model_builder.models.keras.initializers import Float32Orthogonal
 
-def lstm_simple(cells, dropout_rate=0.2):
+def lstm_simple(cells, dropout_rate=0.2, use_cudnn="auto"):
 
     # Keras' own defaults, written out so torch and Flax can declare the same ones.
     # A new initializer per layer: an instance fixes its seed and would repeat the kernel
@@ -11,7 +11,8 @@ def lstm_simple(cells, dropout_rate=0.2):
         kernel_initializer="glorot_uniform",
         recurrent_initializer=Float32Orthogonal(),
         bias_initializer="zeros",
-        unit_forget_bias=True
+        unit_forget_bias=True,
+        use_cudnn=use_cudnn
     )
 
     return Sequential([

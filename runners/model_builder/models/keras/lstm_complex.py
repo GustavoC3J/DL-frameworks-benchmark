@@ -6,7 +6,7 @@ from runners.model_builder.models.keras.initializers import Float32Orthogonal
 # Same epsilon in the three frameworks: Keras defaults to 1e-3 and Flax to 1e-6
 LN_EPSILON = 1e-5
 
-def lstm_complex(cells, lstm_layers, dropout_rate=0.2):
+def lstm_complex(cells, lstm_layers, dropout_rate=0.2, use_cudnn="auto"):
     model = Sequential()
 
     # LSTM funnel
@@ -18,7 +18,8 @@ def lstm_complex(cells, lstm_layers, dropout_rate=0.2):
             kernel_initializer="glorot_uniform",
             recurrent_initializer=Float32Orthogonal(),
             bias_initializer="zeros",
-            unit_forget_bias=True
+            unit_forget_bias=True,
+            use_cudnn=use_cudnn
         ))
         model.add(layers.LayerNormalization(epsilon=LN_EPSILON))
         model.add(layers.Dropout(dropout_rate))

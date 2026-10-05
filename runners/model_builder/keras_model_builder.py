@@ -1,4 +1,5 @@
 
+import keras
 from keras.losses import SparseCategoricalCrossentropy
 from keras.optimizers import Adam
 
@@ -15,6 +16,26 @@ from runners.model_builder.models.keras.transformer import Transformer
 class KerasModelBuilder(ModelBuilder):
     """The classification models output logits, as torch and Flax do: from probabilities, the
     torch and JAX backends clip them to 1e-7 and the loss saturates, while TensorFlow's does not."""
+
+    def __init__(self, model_type, model_complexity, jax_lstm_cudnn=False):
+        super().__init__(model_type, model_complexity)
+        self.jax_lstm_cudnn = jax_lstm_cudnn
+
+
+    def _lstm_cudnn(self):
+        # Keras' "auto" only falls back when cuDNN fails while tracing, but JAX's cuDNN LSTM rejects
+        # anything but float32 when compiling. True instead of "auto": fail rather than fall back
+        if keras.backend.backend() == "jax":
+            return self.jax_lstm_cudnn
+        return "auto"
+
+
+    def _disable_jax_attention_cudnn(self):
+        # JAX's cuDNN attention (fp16/bf16 only) leaves a CUDA error that breaks the next compilation.
+        # Global switch: the layer turns flash_attention=False into the global default (None, auto)
+        if keras.backend.backend() == "jax":
+            keras.config.disable_flash_attention()
+
 
     def _mlp_simple(self):
         activation = "relu"
@@ -98,7 +119,7 @@ class KerasModelBuilder(ModelBuilder):
         lr = 1e-4
         
         # Build the model
-        model = lstm_simple(cells, dropout)
+        model = lstm_simple(cells, dropout, use_cudnn=self._lstm_cudnn())
 
         # Compile the model
         model.compile(
@@ -116,7 +137,7 @@ class KerasModelBuilder(ModelBuilder):
         lr = 1e-4
         
         # Build the model
-        model = lstm_complex(cells, lstm_layers, dropout_rate=dropout)
+        model = lstm_complex(cells, lstm_layers, dropout_rate=dropout, use_cudnn=self._lstm_cudnn())
 
         # Compile the model
         model.compile(
@@ -136,6 +157,7 @@ class KerasModelBuilder(ModelBuilder):
         lr = 1e-4
 
         # Build the model
+        self._disable_jax_attention_cudnn()
         model = Transformer(
             d_model=128,
             num_heads=4,
@@ -164,6 +186,7 @@ class KerasModelBuilder(ModelBuilder):
 
         lr = 1e-4
 
+        self._disable_jax_attention_cudnn()
         model = Transformer(
             d_model=512,
             num_heads=8,

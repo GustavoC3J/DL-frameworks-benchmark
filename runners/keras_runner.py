@@ -16,7 +16,7 @@ KERAS_BACKENDS = {"tf-keras": "tensorflow", "torch-keras": "torch", "jax-keras":
 class KerasRunner(Runner):
     """tf-keras, torch-keras and jax-keras: the same Keras code, on the backend KERAS_BACKEND selects."""
 
-    def __init__(self, backend, **kwargs):
+    def __init__(self, backend, jax_lstm_cudnn=False, **kwargs):
 
         # A wrong KERAS_BACKEND would otherwise train silently on another backend
         expected = KERAS_BACKENDS[backend]
@@ -24,6 +24,7 @@ class KerasRunner(Runner):
             raise RuntimeError(f"{backend} needs KERAS_BACKEND={expected}, but Keras is running on {keras.backend.backend()}")
 
         super().__init__(**kwargs)
+        self.jax_lstm_cudnn = jax_lstm_cudnn
 
         # Seeds python, numpy and the backend (TensorFlow or torch; JAX's is Keras' own)
         keras.utils.set_random_seed(self.seed)
@@ -38,7 +39,7 @@ class KerasRunner(Runner):
 
 
     def define_model(self):
-        self.model = KerasModelBuilder(self.model_type, self.model_complexity).build()
+        self.model = KerasModelBuilder(self.model_type, self.model_complexity, self.jax_lstm_cudnn).build()
 
         # Keras-torch runs eagerly by default (tf and jax already use XLA).
         # One graph per batch shape, as in TorchRunner
