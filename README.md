@@ -93,6 +93,14 @@ initialization, dtypes and gradients). See [`tests/README.md`](tests/README.md).
 bash tests/run_all.sh          # add --gpu <id> to run it on a GPU
 ```
 
+## Model sizes
+
+```sh
+python -m utils.count_parameters
+```
+
+prints the trainable parameters of the eight models (works in any environment).
+
 ## Analysis
 
 [`profiling/profiling_analysis.ipynb`](profiling/profiling_analysis.ipynb) profiles the benchmark
