@@ -1,6 +1,6 @@
 """
 Same hyperparameters: Adam (learning rate, betas and bias correction) as each builder configures
-it, momentum and epsilon of the normalization layers, and dropout rates, attention included (and
+it, and its Keras version also in bfloat16, momentum and epsilon of the normalization layers, and dropout rates, attention included (and
 whether its dropout mask is shared across the batch, as Flax does by default).
 
 Adam's epsilon is declared different on purpose (see CLAUDE.md) and left out of these tests: Keras
@@ -24,16 +24,16 @@ GRADIENTS = [
 
 # --- Adam -----------------------------------------------------------------------------------
 
-def keras_adam_trajectory(optimizer):
+def keras_adam_trajectory(optimizer, dtype="float32"):
     import keras
 
     optimizer = optimizer.__class__.from_config(optimizer.get_config())
-    variable = keras.Variable(np.zeros(4, dtype="float32"))
+    variable = keras.Variable(np.zeros(4), dtype=dtype)
     trajectory = []
 
     for gradient in GRADIENTS:
-        optimizer.apply_gradients([(keras.ops.convert_to_tensor(gradient), variable)])
-        trajectory.append(keras.ops.convert_to_numpy(variable).copy())
+        optimizer.apply_gradients([(keras.ops.convert_to_tensor(gradient, dtype=dtype), variable)])
+        trajectory.append(keras.ops.convert_to_numpy(keras.ops.cast(variable, "float32")).copy())
 
     return np.array(trajectory)
 
@@ -91,6 +91,16 @@ def test_optax_adam_matches_keras(model_type, complexity):
     _, config, _ = build_flax(model_type, complexity)
 
     np.testing.assert_allclose(optax_trajectory(config["optimizer"], GRADIENTS), keras_adam_trajectory(keras_model.optimizer), **trajectory_tolerance(keras_model.optimizer))
+
+
+@pytest.mark.parametrize(("model_type", "complexity"), MODELS, ids=MODEL_IDS)
+def test_keras_adam_steps_in_bfloat16(model_type, complexity):
+    """Keras' own Adam computes its bias correction in bfloat16, which rounds beta_2 to 1: every step is zero."""
+    keras_model = build_keras(model_type, complexity)
+    optimizer = keras_model.optimizer
+    lr = float(optimizer.get_config()["learning_rate"])
+
+    np.testing.assert_allclose(keras_adam_trajectory(optimizer, "bfloat16"), keras_adam_trajectory(optimizer), rtol=2e-2, atol=0.05 * lr)
 
 
 # --- Normalization and dropout --------------------------------------------------------------

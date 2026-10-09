@@ -72,11 +72,12 @@ class KerasRunner(Runner):
         # JAX cannot take a torch tensor directly -> np.asarray
         self.model(np.asarray(next(iter(train_dl))[0]))
 
-        # Only what already exists is saved: the optimizer's slots appear on the first update and
-        # start at zero, and this keeps values such as the learning rate intact
+        # Built before the snapshot, so every variable keeps its initial value: zeroing those created
+        # by fit set mixed_float16's loss scale to 0 and its losses to NaN
         optimizer = self.model.optimizer
+        optimizer.build(self.model.trainable_variables)
         weights = self.model.get_weights()
-        optimizer_state = {variable.path: ops.convert_to_numpy(variable) for variable in optimizer.variables}
+        optimizer_state = [ops.convert_to_numpy(variable) for variable in optimizer.variables]
         generators = self.__seed_generators()
         generator_states = [ops.convert_to_numpy(generator.state) for generator in generators]
 
@@ -85,12 +86,8 @@ class KerasRunner(Runner):
         # Compiled functions are cached per signature, so restoring values does not discard them
         self.model.set_weights(weights)
 
-        for variable in optimizer.variables:
-            if variable.path in optimizer_state:
-                variable.assign(optimizer_state[variable.path])
-            else:
-                # Slot created by the steps above (Adam's moments): it starts at zero
-                variable.assign(ops.zeros(variable.shape, dtype=variable.dtype))
+        for variable, state in zip(optimizer.variables, optimizer_state, strict=True):
+            variable.assign(state)
 
         for generator, state in zip(generators, generator_states):
             generator.state.assign(state)
