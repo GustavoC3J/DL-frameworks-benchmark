@@ -9,6 +9,12 @@ results/*
 !results/.gitkeep
 !results/final
 
+# Final results: only CSVs and error logs, not the saved models
+results/final/**/*
+!results/final/**/
+!results/final/**/*.csv
+!results/final/**/error.txt
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

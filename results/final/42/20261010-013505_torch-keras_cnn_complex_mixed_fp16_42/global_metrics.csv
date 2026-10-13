@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+torch-keras,cnn,complex,mixed_fp16,100,64,42,2,0.317995548248291,100.6133303642273,4801.384730577469,1.450533151626587,0.7281885147094727,625,157,157,81920.0

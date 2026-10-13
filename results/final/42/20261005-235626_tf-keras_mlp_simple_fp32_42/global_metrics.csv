@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+tf-keras,mlp,simple,fp32,100,64,42,2,0.8061869144439697,8.995108127593994,112.75841736793518,0.04257082939147949,1.1811246871948242,750,188,157,81920.0
