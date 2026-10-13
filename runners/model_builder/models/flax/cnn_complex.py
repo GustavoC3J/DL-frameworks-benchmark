@@ -83,6 +83,7 @@ class CNNComplex(nn.Module):
     param_dtype: any
     
     starting_channels: int = 16
+    filters: tuple = (16, 32, 64)
     kernel_initializer: Callable = nn.initializers.he_uniform
 
     @nn.compact
@@ -109,9 +110,8 @@ class CNNComplex(nn.Module):
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
         in_channels = self.starting_channels
-        filters = [16, 32, 64]
 
-        for stage, out_channels in enumerate(filters):
+        for stage, out_channels in enumerate(self.filters):
             for i in range(self.n_blocks):
                 # If it is the first block of the stage, a subsampling is made
                 stride = 2 if stage > 0 and i == 0 else 1

@@ -94,12 +94,13 @@ class KerasModelBuilder(ModelBuilder):
     
 
     def _cnn_complex(self):
-        lr = 1e-3
+        lr = 5e-3
 
         # Build the model
         model = CNNComplex(
             n_blocks=5, # number of blocks, 6n + 2 layers
             starting_channels=64,
+            filters=(64, 128, 256), # 4 times ResNet32's widths
             kernel_initializer="he_uniform"
         )
         

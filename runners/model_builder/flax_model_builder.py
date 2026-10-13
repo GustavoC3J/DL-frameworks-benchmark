@@ -115,13 +115,14 @@ class FlaxModelBuilder(ModelBuilder):
     
 
     def _cnn_complex(self):
-        lr = 1e-3
+        lr = 5e-3
 
         model = CNNComplex(
             n_blocks=5, # number of blocks, 6n + 2 layers
             dtype=self.dtype,
             param_dtype=self.param_dtype,
-            starting_channels=64
+            starting_channels=64,
+            filters=(64, 128, 256) # 4 times ResNet32's widths
         )
 
         # Initial state

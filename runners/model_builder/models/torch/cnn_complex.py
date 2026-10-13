@@ -54,7 +54,7 @@ class Block(nn.Module):
 
 
 class CNNComplex(nn.Module):
-    def __init__(self, n_blocks, starting_channels = 16, kernel_initializer = "he_uniform"):
+    def __init__(self, n_blocks, starting_channels = 16, filters = (16, 32, 64), kernel_initializer = "he_uniform"):
         super().__init__()
         
         layers = nn.ModuleList()
@@ -66,7 +66,6 @@ class CNNComplex(nn.Module):
         layers.append(nn.ReLU())
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
-        filters = [16, 32, 64]
         in_channels = starting_channels
 
         for stage, out_channels in enumerate(filters):

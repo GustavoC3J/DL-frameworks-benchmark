@@ -74,6 +74,7 @@ class CNNComplex(keras.Model):
         self,
         n_blocks,
         starting_channels = 16,
+        filters = (16, 32, 64),
         kernel_initializer = "he_uniform",
         **kwargs
     ):
@@ -86,7 +87,6 @@ class CNNComplex(keras.Model):
         self.model_layers.append(layers.ReLU())
 
         # Each stage is composed of n blocks whose convolutions use the corresponding filters
-        filters = [16, 32, 64]
         in_channels = starting_channels
 
         for stage, out_channels in enumerate(filters):
@@ -106,6 +106,7 @@ class CNNComplex(keras.Model):
         self.config = {
             "n_blocks": n_blocks,
             "starting_channels": starting_channels,
+            "filters": list(filters),
             "kernel_initializer": kernel_initializer
         }
 
