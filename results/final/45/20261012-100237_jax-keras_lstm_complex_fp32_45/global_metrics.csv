@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+jax-keras,lstm,complex,fp32,100,64,45,2,0.8875007629394531,26.748494863510132,727.8981120586395,0.2530691623687744,2.3408758640289307,162,39,68,81920.0

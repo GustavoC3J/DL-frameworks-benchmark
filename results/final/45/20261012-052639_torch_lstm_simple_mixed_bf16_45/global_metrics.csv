@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+torch,lstm,simple,mixed_bf16,100,64,45,2,2.057673215866089,1.977306842803955,88.64738273620605,0.0038039684295654297,0.23921799659729004,162,39,68,81920.0
