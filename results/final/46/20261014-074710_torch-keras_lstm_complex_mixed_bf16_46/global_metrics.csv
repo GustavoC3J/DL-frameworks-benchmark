@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+torch-keras,lstm,complex,mixed_bf16,100,64,46,2,0.2903635501861572,59.3100380897522,1206.9204523563385,0.24497246742248535,4.116953611373901,162,39,68,81920.0
