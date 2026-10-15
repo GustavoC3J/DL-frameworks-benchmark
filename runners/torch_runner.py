@@ -6,7 +6,7 @@ import torch
 
 from runners.model_builder.torch_model_builder import TorchModelBuilder
 from runners.runner import Runner
-from utils.precision import get_torch_precision
+from utils.precision import enable_tf32, get_torch_precision
 from utils.torch_utils import adjust_outputs, batch_weighted_mean
 
 
@@ -28,6 +28,7 @@ class TorchRunner(Runner):
         # Set global floating point precision
         self.dtype, self.amp_dtype = get_torch_precision(self.precision)
         self.amp = self.amp_dtype is not None # AMP = Automatic Mixed Precision
+        enable_tf32("torch")
 
         if self.amp:
             self.scaler = torch.amp.GradScaler()

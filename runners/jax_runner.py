@@ -10,7 +10,7 @@ from flax.training import checkpoints
 from runners.model_builder.flax_model_builder import FlaxModelBuilder
 from runners.runner import Runner
 from utils.jax_utils import TrainState, make_eval_step, make_train_step
-from utils.precision import get_jmp_policy
+from utils.precision import enable_tf32, get_jmp_policy
 
 
 class JaxRunner(Runner):
@@ -30,6 +30,7 @@ class JaxRunner(Runner):
 
         # Set global floating point precision
         self.policy, self.loss_scale = get_jmp_policy(self.precision)
+        enable_tf32("jax")
 
 
     def define_model(self):

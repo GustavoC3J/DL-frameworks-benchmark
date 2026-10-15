@@ -48,7 +48,8 @@ def pytest_configure(config):
 @pytest.fixture(scope="session", autouse=True)
 def gpu_setup():
     """Check the GPU is really there, and disable TF32: on Ampere+ it truncates float32 matmuls to
-    a 10-bit mantissa (~1e-3 of error) and would break the tolerances. The experiments keep TF32."""
+    a 10-bit mantissa (~1e-3 of error) and would break the tolerances. The experiments enable it in
+    every framework (utils.precision.enable_tf32)."""
     from tests.helpers import BACKEND, on_gpu
 
     if not on_gpu():

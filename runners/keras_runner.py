@@ -6,7 +6,7 @@ from keras.random import SeedGenerator
 from runners.model_builder.keras_model_builder import KerasModelBuilder
 from runners.runner import Runner
 from utils.best_weights_callback import BestWeightsCallback
-from utils.precision import get_keras_precision
+from utils.precision import enable_tf32, get_keras_precision
 from utils.stage_callback import StageCallback
 
 # Keras backend each benchmark backend runs on (KERAS_BACKEND has to be set before importing keras)
@@ -31,6 +31,7 @@ class KerasRunner(Runner):
 
         # Set global floating point precision
         keras.config.set_dtype_policy(get_keras_precision(self.precision))
+        enable_tf32(keras.backend.backend())
 
 
     @property

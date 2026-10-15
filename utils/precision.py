@@ -72,4 +72,20 @@ def get_jmp_policy(precision: Precision):
     else:
         raise ValueError("Unsupported precision: " + precision)
 
+
+def enable_tf32(framework: str):
+    """float32 matmuls and convolutions on TF32 tensor cores, the TensorFlow and JAX default on Ampere+.
+    torch disables it for matmuls since 1.12, which made its fp32 runs not comparable."""
+    if framework == "torch":
+        import torch
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
+    elif framework == "tensorflow":
+        import tensorflow as tf
+        tf.config.experimental.enable_tensor_float_32_execution(True)
+
+    # JAX: Precision.DEFAULT already lets XLA use TF32; setting a precision would change the lowering
     
+    elif framework != "jax":
+        raise ValueError("Unsupported framework: " + framework)
