@@ -16,15 +16,19 @@ KERAS_BACKENDS = {"tf-keras": "tensorflow", "torch-keras": "torch", "jax-keras":
 class KerasRunner(Runner):
     """tf-keras, torch-keras and jax-keras: the same Keras code, on the backend KERAS_BACKEND selects."""
 
-    def __init__(self, backend, jax_lstm_cudnn=False, **kwargs):
+    def __init__(self, backend, jax_lstm_cudnn=False, jit=True, torch_dataloader=False, **kwargs):
 
         # A wrong KERAS_BACKEND would otherwise train silently on another backend
         expected = KERAS_BACKENDS[backend]
         if keras.backend.backend() != expected:
             raise RuntimeError(f"{backend} needs KERAS_BACKEND={expected}, but Keras is running on {keras.backend.backend()}")
 
+        # Before the base constructor, which builds the data loader factory from data_framework
+        self.torch_dataloader = torch_dataloader
+
         super().__init__(**kwargs)
         self.jax_lstm_cudnn = jax_lstm_cudnn
+        self.jit = jit
 
         # Seeds python, numpy and the backend (TensorFlow or torch; JAX's is Keras' own)
         keras.utils.set_random_seed(self.seed)
@@ -36,18 +40,22 @@ class KerasRunner(Runner):
 
     @property
     def data_framework(self):
-        return "tf" if keras.backend.backend() == "tensorflow" else "torch"
+        return "tf" if keras.backend.backend() == "tensorflow" and not self.torch_dataloader else "torch"
 
 
     def define_model(self):
         self.model = KerasModelBuilder(self.model_type, self.model_complexity, self.jax_lstm_cudnn).build()
 
-        # Keras-torch runs eagerly by default (tf and jax already use XLA).
-        # One graph per batch shape, as in TorchRunner
+        # Keras-torch runs eagerly by default; tf and jax use XLA, except TF's LSTM, whose cuDNN
+        # kernel is not XLA compatible. One graph per batch shape, as in TorchRunner
         if keras.backend.backend() == "torch":
             import torch
             torch._dynamo.config.automatic_dynamic_shapes = False
-            self.model.jit_compile = True
+            self.model.jit_compile = self.jit
+
+        # tf.function graphs without XLA
+        elif not self.jit:
+            self.model.jit_compile = False
 
 
     def __seed_generators(self):

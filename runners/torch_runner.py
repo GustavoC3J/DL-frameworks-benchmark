@@ -14,9 +14,10 @@ class TorchRunner(Runner):
 
     data_framework = "torch"
 
-    def __init__(self, **kwargs):
+    def __init__(self, jit=True, **kwargs):
 
         super().__init__(**kwargs)
+        self.jit = jit
 
         # It is always 0, independently of CUDA index
         self.device = torch.device("cuda:0")
@@ -44,7 +45,7 @@ class TorchRunner(Runner):
         torch._dynamo.config.automatic_dynamic_shapes = False
 
         # The plain module stays as self.model, so state_dict keys and checkpoints do not change
-        self.forward = torch.compile(self.__forward)
+        self.forward = torch.compile(self.__forward) if self.jit else self.__forward
 
 
     def __forward(self, batch_x, batch_y):

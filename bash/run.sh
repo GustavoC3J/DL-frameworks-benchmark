@@ -30,6 +30,11 @@ case $LIBRARY in
         ;;
 esac
 
+# The data loader ablation feeds tf-keras with torch's DataLoader, in an environment that has both
+if [[ "$LIBRARY" == "tf" && " ${*:8} " == *" --torch-dataloader "* ]]; then
+    CONDA_ENV="bm_tf_torch_env"
+fi
+
 # Set Keras backend (default: tf)
 if [[ "$LIBRARY" != "tf" ]]; then
     export KERAS_BACKEND="$LIBRARY"

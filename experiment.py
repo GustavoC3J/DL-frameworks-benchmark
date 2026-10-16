@@ -34,13 +34,32 @@ def parse_params():
     # jax-keras runs the LSTM without cuDNN, which in JAX only supports float32
     parser.add_argument("--enable-jax-lstm-cudnn", action="store_true")
 
+    # Ablations, each a label of its own: no compilation, allocator on demand, torch's DataLoader in TF
+    parser.add_argument("--no-jit", action="store_true")
+    parser.add_argument("--memory-on-demand", action="store_true")
+    parser.add_argument("--torch-dataloader", action="store_true")
+
     params = parser.parse_args()
 
     if params.enable_jax_lstm_cudnn and (params.backend, params.model_type, params.precision) != ("jax-keras", "lstm", Precision.FP32):
         parser.error("--enable-jax-lstm-cudnn only applies to jax-keras, lstm and fp32")
 
+    # JAX is meant to run under jit, and torch's allocator has no preallocation to turn off
+    if params.no_jit and params.backend not in ("torch", "torch-keras", "tf-keras"):
+        parser.error("--no-jit only applies to torch, torch-keras and tf-keras")
+
+    if params.memory_on_demand and params.backend not in ("tf-keras", "jax-keras", "jax"):
+        parser.error("--memory-on-demand only applies to tf-keras, jax-keras and jax")
+
+    if params.torch_dataloader and params.backend != "tf-keras":
+        parser.error("--torch-dataloader only applies to tf-keras")
+
     # Name of the run's configuration, in its directory and in global_metrics.csv
     params.label = "jax-keras-cudnn" if params.enable_jax_lstm_cudnn else params.backend
+
+    for enabled, suffix in ((params.no_jit, "nojit"), (params.memory_on_demand, "ondemand"), (params.torch_dataloader, "torchdl")):
+        if enabled:
+            params.label += f"-{suffix}"
 
     return params
 
@@ -152,7 +171,12 @@ if __name__ == "__main__":
 
     # Set GPUs to use
     os.environ["CUDA_VISIBLE_DEVICES"] = params.gpu_ids
-    
+
+    # By default TensorFlow reserves almost the whole GPU and JAX 75 %; torch already allocates on demand
+    if params.memory_on_demand:
+        os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+        os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+
     runner_params = dict(
         model_type = params.model_type,
         model_complexity = params.model_complexity,
@@ -166,11 +190,12 @@ if __name__ == "__main__":
     # Imported only here, once CUDA_VISIBLE_DEVICES is set
     if params.backend.endswith("-keras"):
         from runners.keras_runner import KerasRunner
-        runner = KerasRunner(backend=params.backend, jax_lstm_cudnn=params.enable_jax_lstm_cudnn, **runner_params)
+        runner = KerasRunner(backend=params.backend, jax_lstm_cudnn=params.enable_jax_lstm_cudnn,
+                             jit=not params.no_jit, torch_dataloader=params.torch_dataloader, **runner_params)
 
     elif params.backend == "torch":
         from runners.torch_runner import TorchRunner
-        runner = TorchRunner(**runner_params)
+        runner = TorchRunner(jit=not params.no_jit, **runner_params)
 
     else:
         from runners.jax_runner import JaxRunner
