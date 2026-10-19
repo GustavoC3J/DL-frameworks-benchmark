@@ -4,16 +4,21 @@ datasets/*
 !datasets/download.py
 !datasets/preprocess_taxi.py
 
-# Exclude results but keep the directory and final results
+# Exclude results but keep the directory, final results, and ablations
 results/*
 !results/.gitkeep
 !results/final
+!results/ablations
 
-# Final results: only CSVs and error logs, not the saved models
+# Final results and ablations: only CSVs and error logs, not the saved models
 results/final/**/*
 !results/final/**/
 !results/final/**/*.csv
 !results/final/**/error.txt
+results/ablations/**/*
+!results/ablations/**/
+!results/ablations/**/*.csv
+!results/ablations/**/error.txt
 
 
 # Byte-compiled / optimized / DLL files

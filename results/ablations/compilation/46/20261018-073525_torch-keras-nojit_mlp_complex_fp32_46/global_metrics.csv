@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+torch-keras-nojit,mlp,complex,fp32,100,64,46,2,0.29245662689208984,0.3340442180633545,1708.3744678497314,0.3295106887817383,0.9328703880310059,750,188,157,81920.0

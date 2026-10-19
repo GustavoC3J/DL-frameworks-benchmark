@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+tf-keras-nojit,transformer,simple,fp32,100,64,45,2,0.8108072280883789,7.719507455825806,218.3811159133911,0.13498353958129883,0.3522157669067383,162,39,68,81920.0

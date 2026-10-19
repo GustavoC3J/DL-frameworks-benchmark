@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+tf-keras-ondemand,cnn,simple,fp32,100,64,46,2,0.5441107749938965,14.603308200836182,127.44721484184265,0.05387759208679199,0.40442442893981934,625,157,157,81920.0

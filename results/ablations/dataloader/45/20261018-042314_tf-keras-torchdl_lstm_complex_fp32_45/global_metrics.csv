@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+tf-keras-torchdl,lstm,complex,fp32,100,64,45,2,0.8018932342529297,7.8386993408203125,436.30218052864075,0.3182218074798584,0.795271635055542,162,39,68,81920.0

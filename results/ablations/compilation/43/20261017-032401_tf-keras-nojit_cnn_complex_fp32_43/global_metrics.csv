@@ -1,0 +1,2 @@
+backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
+tf-keras-nojit,cnn,complex,fp32,100,64,43,2,0.8194878101348877,13.233345985412598,2231.9385142326355,1.0419809818267822,1.2043123245239258,625,157,157,81920.0
