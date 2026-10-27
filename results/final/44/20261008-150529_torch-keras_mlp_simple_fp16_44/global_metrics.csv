@@ -1,2 +1,0 @@
-backend,model_type,model_complexity,precision,epochs,batch_size,seed,gpu_ids,definition_time,precompile_time,training_time,saving_time,testing_time,train_batches,val_batches,test_batches,gpu_2_memory_total
-torch-keras,mlp,simple,fp16,100,64,44,2,0.2836570739746094,18.6062593460083,203.6105763912201,0.026835203170776367,2.1661319732666016,750,188,157,81920.0

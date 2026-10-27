@@ -64,8 +64,10 @@ BatchNorm not following the dtype policy, and the padding of torch's stride-2 co
 Two things are deliberately left out. Adam's epsilon is not tested: Keras applies it before the
 bias correction (not after, like torch and optax), so no shared value would give the same
 trajectory, and the difference only matters for near-zero gradients. It stays a declared
-difference. And the training step of `torch` is written but skipped, waiting for the runners to be
-split so that the step becomes a reusable function.
+difference, as does Keras' bias correction in the variable's dtype: in bfloat16, beta_2 rounds to 1
+and the step is zero, so Keras does not train in pure bf16 (`test_keras_adam_does_not_step_in_bfloat16`
+checks that this still holds). And the training step of `torch` is written but skipped, waiting for
+the runners to be split so that the step becomes a reusable function.
 
 ## Adding a model or a layer
 

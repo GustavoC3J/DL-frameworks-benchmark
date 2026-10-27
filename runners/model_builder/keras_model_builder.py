@@ -1,6 +1,7 @@
 
 import keras
 from keras.losses import SparseCategoricalCrossentropy
+from keras.optimizers import Adam
 
 from runners.model_builder.model_builder import ModelBuilder
 from runners.model_builder.models.keras.cnn_complex import CNNComplex
@@ -9,7 +10,6 @@ from runners.model_builder.models.keras.lstm_complex import lstm_complex
 from runners.model_builder.models.keras.lstm_simple import lstm_simple
 from runners.model_builder.models.keras.mlp_complex import MLPComplex
 from runners.model_builder.models.keras.mlp_simple import mlp_simple
-from runners.model_builder.models.keras.optimizers import Adam
 from runners.model_builder.models.keras.transformer import Transformer
 
 

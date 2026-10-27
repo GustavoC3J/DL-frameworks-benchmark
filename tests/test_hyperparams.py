@@ -1,6 +1,6 @@
 """
 Same hyperparameters: Adam (learning rate, betas and bias correction) as each builder configures
-it, and its Keras version also in bfloat16, momentum and epsilon of the normalization layers, and dropout rates, attention included (and
+it, momentum and epsilon of the normalization layers, and dropout rates, attention included (and
 whether its dropout mask is shared across the batch, as Flax does by default).
 
 Adam's epsilon is declared different on purpose (see CLAUDE.md) and left out of these tests: Keras
@@ -94,13 +94,11 @@ def test_optax_adam_matches_keras(model_type, complexity):
 
 
 @pytest.mark.parametrize(("model_type", "complexity"), MODELS, ids=MODEL_IDS)
-def test_keras_adam_steps_in_bfloat16(model_type, complexity):
-    """Keras' own Adam computes its bias correction in bfloat16, which rounds beta_2 to 1: every step is zero."""
+def test_keras_adam_does_not_step_in_bfloat16(model_type, complexity):
+    """Declared difference: Keras' Adam computes its bias correction in bfloat16, which rounds beta_2 to 1."""
     keras_model = build_keras(model_type, complexity)
-    optimizer = keras_model.optimizer
-    lr = float(optimizer.get_config()["learning_rate"])
 
-    np.testing.assert_allclose(keras_adam_trajectory(optimizer, "bfloat16"), keras_adam_trajectory(optimizer), rtol=2e-2, atol=0.05 * lr)
+    np.testing.assert_array_equal(keras_adam_trajectory(keras_model.optimizer, "bfloat16"), 0)
 
 
 # --- Normalization and dropout --------------------------------------------------------------
