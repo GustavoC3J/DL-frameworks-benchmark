@@ -20,6 +20,10 @@ results/ablations/**/*
 !results/ablations/**/*.csv
 !results/ablations/**/error.txt
 
+# Analysis outputs: only the statistical tests are versioned, not the figures and LaTeX tables
+analysis/artifacts/img/
+analysis/artifacts/latex/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

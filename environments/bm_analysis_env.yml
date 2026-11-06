@@ -1,0 +1,22 @@
+# Environment for the results analysis notebooks (no GPU frameworks).
+#   conda env create -f environments/bm_analysis_env.yml
+#   python -m ipykernel install --user --name bm_analysis_env --display-name bm_analysis_env
+name: bm_analysis_env
+
+channels:
+  - defaults
+
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - numpy==2.5.4
+      - pandas==3.1.0
+      - scipy==1.18.1
+      - statsmodels==0.15.0
+      - matplotlib==3.11.2
+      - seaborn==0.13.2
+      - scikit-learn==1.9.1
+      - adjustText==1.4.0
+      - ipykernel==7.4.0
+      - nbconvert==7.17.2
