@@ -61,13 +61,18 @@ and initializers, which are now homogenized across the three frameworks and cove
 `test_init.py` and `test_hyperparams.py`, the dtype of the loss in reduced precision, Flax's
 BatchNorm not following the dtype policy, and the padding of torch's stride-2 convolutions.
 
-Two things are deliberately left out. Adam's epsilon is not tested: Keras applies it before the
+One thing is deliberately left out. Adam's epsilon is not tested: Keras applies it before the
 bias correction (not after, like torch and optax), so no shared value would give the same
 trajectory, and the difference only matters for near-zero gradients. It stays a declared
 difference, as does Keras' bias correction in the variable's dtype: in bfloat16, beta_2 rounds to 1
 and the step is zero, so Keras does not train in pure bf16 (`test_keras_adam_does_not_step_in_bfloat16`
-checks that this still holds). And the training step of `torch` is written but skipped, waiting for
-the runners to be split so that the step becomes a reusable function.
+checks that this still holds).
+
+The `torch` training step runs `TorchRunner`'s own step, without `torch.compile`, and accounts for
+two declared differences: both biases of `nn.LSTM` get Keras' bias gradient, and torch updates
+BatchNorm's running variance with the unbiased batch variance (n/(n-1)), which the test undoes. On a
+GPU, Keras and torch pick different cuDNN algorithms and the ResNet still flips a ReLU, so its
+`torch` step runs in float64 (Flax stays in float32: float64 is a global switch in JAX).
 
 ## Adding a model or a layer
 
